@@ -70,6 +70,53 @@ def filter_image_data(data_index_file, src_img_path, src_mask_path, dst_img_path
     print("copied {} image files".format(data_index.shape[0]))     
 
 
+
+# This function will copy the dataset masks for the indices present in data index file from src path to dst path
+def filter_mask_data(data_index_file, src_mask_path, dst_mask_path):
+    data_index = pd.read_csv(data_index_file)
+    
+    print("{} data index shape: {}".format(data_index_file, data_index.shape))
+
+    idx = 0
+    for i in range(0, data_index.shape[0]):
+        fp_n = data_index.iloc[i]['file_name']
+        fp_n = str(format(int(fp_n[:-4]), '05d')) 
+        fp = os.path.join(src_mask_path, fp_n)
+
+        fp_si_eyeg = fp + '_eye_g.png'
+        fp_si_hat = fp + '_hat.png' 
+
+        if (os.path.exists(fp_si_eyeg)):
+            # print(fp_si_eyeg)
+            shutil.copy(fp_si_eyeg, dst_mask_path)
+            idx+=1
+            # exit()
+
+        if (os.path.exists(fp_si_hat)):
+            # print(fp_si_hat)
+            shutil.copy(fp_si_hat, dst_mask_path)
+            idx+=1
+
+    print("copied {} masks files".format(idx))      
+
+
+# This function will extract annotations for few required attributes and use them to copy into a single folder
+def unify_annotation_masks(image_anno_root):
+    folders = [os.path.join(image_anno_root, str(i)) for i in range(0,15)]
+    dst_combined_path = os.path.join(image_anno_root, 'combined_annos/')
+
+    # for folder in os.listdir(image_anno_root):
+    #     print("folder: ", folder)
+
+    for folder in folders:
+        print("Processing {} folder".format(folder))
+        for img_nm in os.listdir(folder):
+            img_path = os.path.join(folder, img_nm)
+
+            if (img_nm[-9:] == 'eye_g.png' or img_nm[-7:] == 'hat.png'):
+                shutil.copy(img_path, dst_combined_path) 
+
+
 # Remove all the files from the given input folder
 def clean_folder(root_dir):
     for file_ in os.listdir(root_dir):
@@ -91,18 +138,26 @@ def main():
     # Using the above filtered data to copy the corresponding images and segmentation masks to a separate folder
     root_path = '../CelebAMask-HQ/' 
     src_img_path = os.path.join(root_path, 'CelebA-HQ-img')
-    src_mask_path = os.path.join(root_path, 'CelebA-HQ-mask-anno')
+    src_mask_path = os.path.join(root_path, 'CelebAMask-HQ-mask-anno/combined_annos') 
 
 
-    dst_img_path = os.path.join(root_path, 'data_filtered/img')
+    dst_img_path = os.path.join(root_path, 'data_filtered/img') 
     dst_mask_path = os.path.join(root_path, 'data_filtered/anno-mask')
+    data_files_path = '../data_files'
 
-    clean_folder(dst_img_path)
-    clean_folder(dst_mask_path)
+    # Cleaning files to remove the older files 
+    # clean_folder(dst_img_path)
+    # clean_folder(dst_mask_path)
 
-    data_index_files = ['smile_pos_500.csv', 'smile_neg_500.csv', 'hat_pos_500.csv', 'hat_neg_500.csv', 'eyeglasses_pos_500.csv', 'eyeglasses_neg_500.csv']
+    data_index_names = ['smile_pos_500.csv', 'smile_neg_500.csv', 'hat_pos_500.csv', 'hat_neg_500.csv', 'eyeglasses_pos_500.csv', 'eyeglasses_neg_500.csv']
+    data_index_files = [os.path.join(data_files_path, din) for din in data_index_names] 
+
     for dif in data_index_files:
-        filter_image_data(dif, src_img_path, src_mask_path, dst_img_path, dst_mask_path)
+        # filter_image_data(dif, src_img_path, src_mask_path, dst_img_path, dst_mask_path)
+        filter_mask_data(dif, src_mask_path, dst_mask_path) 
+
+    # Copying all the masks for eyeglass and hat attribute into a combined filter 
+    # unify_annotation_masks(src_mask_path)
 
 if __name__ == "__main__":
     main()
