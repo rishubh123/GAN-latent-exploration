@@ -5,6 +5,11 @@ To run the experiments follow these steps to setup the network weights and depen
 
 # Installation
 ```
+ - pip install matplotlib
+ - pip install ipython 
+ # basic py libs: if not installed 
+ 
+ - pip install ninja
  - pip install lpips
  - mkdir -p resources/dlib
  
