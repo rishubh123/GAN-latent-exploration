@@ -32,7 +32,8 @@ To run the experiments follow these steps to setup the network weights and depen
 
 # Results 
 ## Approach 1 Results 
-### Editing results for eyeglass attribute editing, alpha: strength of edit operation 
+### Editing results for eyeglass attribute editing, alpha: strength of edit operation
+source: input image, inversion: inverted image from GAN
 <img width="769" alt="eyeglasses1" src="https://user-images.githubusercontent.com/16732827/142574919-4a3da48f-3a52-4afa-9235-b03fc8cdcb7f.png">
 <img width="773" alt="eyeglasses2" src="https://user-images.githubusercontent.com/16732827/142574966-0e673f43-e553-417d-adfa-cb1804e507d9.png">
 
