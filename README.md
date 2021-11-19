@@ -31,8 +31,15 @@ To run the experiments follow these steps to setup the network weights and depen
 ```
 
 # Results 
-![alt text](./Results/Approach1_wo_id/eyeglasses1.png?raw=true "Approach1 results "eyeglass" editing") 
-![alt text](./Results/Approach1_wo_id/eyeglasses2.png?raw=true "Approach1 results "eyeglass" editing") 
-![alt text](./Results/Approach1_wo_id/smile1.png?raw=true "Approach1 results "smile" editing") 
-![alt text](./Results/Approach1_wo_id/smile2.png?raw=true "Approach1 results "smile" editing") 
-![alt text](./Results/Approach1_wo_id/hat.png?raw=true "Approach1 results "wearning_hat" editing") 
+<img width="769" alt="eyeglasses1" src="https://user-images.githubusercontent.com/16732827/142574919-4a3da48f-3a52-4afa-9235-b03fc8cdcb7f.png">
+<img width="773" alt="eyeglasses2" src="https://user-images.githubusercontent.com/16732827/142574966-0e673f43-e553-417d-adfa-cb1804e507d9.png">
+<img width="772" alt="hat" src="https://user-images.githubusercontent.com/16732827/142574991-dc502623-d4f4-406a-8296-83f3ebdda612.png">
+<img width="779" alt="smile1" src="https://user-images.githubusercontent.com/16732827/142575006-634f940a-4fe1-4cdf-a720-554ec4e49ee4.png">
+<img width="770" alt="smile2" src="https://user-images.githubusercontent.com/16732827/142575009-8a825b47-ac5e-4599-8273-7c111b6bc22f.png">
+
+
+![alt text](https://user-images.githubusercontent.com/16732827/142574919-4a3da48f-3a52-4afa-9235-b03fc8cdcb7f.png "Approach1 results "eyeglass" editing") 
+![alt text](https://user-images.githubusercontent.com/16732827/142574966-0e673f43-e553-417d-adfa-cb1804e507d9.png "Approach1 results "eyeglass" editing") 
+![alt text](https://user-images.githubusercontent.com/16732827/142574991-dc502623-d4f4-406a-8296-83f3ebdda612.png "Approach1 results "smile" editing") 
+![alt text](https://user-images.githubusercontent.com/16732827/142575006-634f940a-4fe1-4cdf-a720-554ec4e49ee4.png "Approach1 results "smile" editing") 
+![alt text](https://user-images.githubusercontent.com/16732827/142575009-8a825b47-ac5e-4599-8273-7c111b6bc22f.png "Approach1 results "wearning_hat" editing") 
