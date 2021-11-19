@@ -31,8 +31,8 @@ To run the experiments follow these steps to setup the network weights and depen
 ```
 
 # Results 
-![Alt text](Results/Approach1_wo_id/eyeglasses1.png?raw=true "Approach1 results "eyeglass" editing") 
-![Alt text](Results/Approach1_wo_id/eyeglasses2.png?raw=true "Approach1 results "eyeglass" editing") 
-![Alt text](Results/Approach1_wo_id/smile1.png?raw=true "Approach1 results "smile" editing") 
-![Alt text](Results/Approach1_wo_id/smile2.png?raw=true "Approach1 results "smile" editing") 
-![Alt text](Results/Approach1_wo_id/hat.png?raw=true "Approach1 results "wearning_hat" editing") 
+![alt text](./Results/Approach1_wo_id/eyeglasses1.png?raw=true "Approach1 results "eyeglass" editing") 
+![alt text](./Results/Approach1_wo_id/eyeglasses2.png?raw=true "Approach1 results "eyeglass" editing") 
+![alt text](./Results/Approach1_wo_id/smile1.png?raw=true "Approach1 results "smile" editing") 
+![alt text](./Results/Approach1_wo_id/smile2.png?raw=true "Approach1 results "smile" editing") 
+![alt text](./Results/Approach1_wo_id/hat.png?raw=true "Approach1 results "wearning_hat" editing") 
