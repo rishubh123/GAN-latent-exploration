@@ -50,12 +50,15 @@ To run the experiments follow these steps to setup the network weights and depen
 
 ## Approach 2 Results without idenity loss
 ### Synthetic data creation by augmenting the soruce image with hat and eyeglasses attributes
-<img width="775" alt="data_synthesis" src="https://user-images.githubusercontent.com/16732827/142575921-fcf082b2-0a18-4cd6-a38e-0dd0a46c2cb1.png">
+<img width="771" alt="data_synthesis" src="https://user-images.githubusercontent.com/16732827/142576957-639d29f4-9a48-4f5a-babd-2e0d32ac295e.png">
+
 
 ### Editing results for eyeglasses attribute, alpha: stength of edit
-<img width="762" alt="eyeglasses1" src="https://user-images.githubusercontent.com/16732827/142576013-7afdd317-98c5-4704-9213-389a4be045bc.png">
-<img width="765" alt="eyeglasses2" src="https://user-images.githubusercontent.com/16732827/142576043-ddf04619-1664-4d1d-8287-5fef1fd504cc.png">
+<img width="761" alt="eyeglasses1" src="https://user-images.githubusercontent.com/16732827/142576982-c74ce039-d5dc-445b-b1d5-82b50a09e0a8.png">
+<img width="773" alt="eyeglasses2" src="https://user-images.githubusercontent.com/16732827/142576986-e19f6530-eb75-4b7b-b43e-29c362a3b921.png">
+
 
 ### Editing results for hat attribute, alpha: stength of edit operation
-<img width="768" alt="hat" src="https://user-images.githubusercontent.com/16732827/142576125-321a25af-925f-4cc1-999e-d2481cf67f7a.png">
+<img width="780" alt="hat" src="https://user-images.githubusercontent.com/16732827/142577001-29559150-fa40-456c-bb0c-e916a552e27c.png">
+
 
