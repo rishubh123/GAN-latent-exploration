@@ -10,7 +10,7 @@ def read_annotations(anno_file_path, data_size):
     anno_file = open(anno_file_path, 'r') 
 
     n = anno_file.readline()
-    attributes = ['file_name'] + anno_file.readline()[:-1].split(' ')
+    attributes = ['file_name'] + anno_file.readline()[:-1].split(' ') 
 
     print("attributes: ", attributes)
     anno_matrix = []
@@ -24,7 +24,7 @@ def read_annotations(anno_file_path, data_size):
         # print("{} line: {}".format(i, pro_line))
 
     anno_matrix = np.array(anno_matrix)
-    atts_df = pd.DataFrame(data = anno_matrix, columns = attributes)
+    atts_df = pd.DataFrame(data = anno_matrix, columns = attributes) 
 
     # print("final df: {}".format(atts_df))
 
@@ -122,6 +122,49 @@ def clean_folder(root_dir):
     for file_ in os.listdir(root_dir):
         os.remove(os.path.join(root_dir, file_))
 
+# This function will generate a csv by creating pairs of images with (augmented) and without attribute from one folder having all these image.
+def generate_csv_for_images(img_folder, dst_dir):
+    # Here we will create a csv for each single image and all of its possible augmentations
+    img_list_hat = ['533.jpg', '1547.jpg', '18277.jpg', '21765.jpg']
+    img_list_eye_g = ['27995.jpg', '8167.jpg']
+
+    # Creating files for augmented images with hat 
+    for img_nm in img_list_hat:
+        map_mat = []
+        df_save_path = os.path.join(dst_dir, img_nm[:-4] + '_hat_transforms.csv')
+        
+        print("Df save name: ", df_save_path) 
+        for file in os.listdir(img_folder):
+            # print(" condition: ", file, img_nm)
+            if (file[:3] == img_nm[:3] and file[-7:] == 'hat.jpg'):
+                row = [img_nm, file]
+                map_mat.append(row)
+            
+        map_mat = np.array(map_mat)
+        map_df = pd.DataFrame(data = map_mat, columns = ['Original_img', 'Transformed_img'])
+
+        print("save mat: ", map_df) 
+        map_df.to_csv(df_save_path)
+        print("Saving dataframe ... ", df_save_path)  
+
+
+    # Creating files for augmented images with eyeg
+    for img_nm in img_list_eye_g:
+        map_mat = []
+        df_save_path = os.path.join(dst_dir, img_nm[:-4] + '_eye_g_transforms.csv')
+        for file in os.listdir(img_folder):
+            if (file[:3] == img_nm[:3] and file[-9:] == 'eye_g.jpg'):
+                row = [img_nm, file]
+                map_mat.append(row)
+
+        map_mat = np.array(map_mat)
+        map_df = pd.DataFrame(data = map_mat, columns = ['Original_img', 'Transformed_img'])
+
+        print("save mat: ", map_df)  
+        map_df.to_csv(df_save_path)
+        print("Saving dataframe ... ", df_save_path)   
+
+
 
 def main():
     # Reading the annotation files and saving the annotation for desired attribute Eyeglasses, Wearing_Hat
@@ -135,9 +178,10 @@ def main():
     atts_filtered_neg.to_csv('hat_neg_500.csv') 
     """
 
+    """ 
     # Using the above filtered data to copy the corresponding images and segmentation masks to a separate folder
     root_path = '../CelebAMask-HQ/' 
-    src_img_path = os.path.join(root_path, 'CelebA-HQ-img')
+    src_img_path = os.path.join(root_path, 'CelebA-HQ-img') 
     src_mask_path = os.path.join(root_path, 'CelebAMask-HQ-mask-anno/combined_annos') 
 
 
@@ -158,8 +202,14 @@ def main():
 
     # Copying all the masks for eyeglass and hat attribute into a combined filter 
     # unify_annotation_masks(src_mask_path)
+    """
+
+    # Generating csv for each of the image files and its various augmentations for hat and eyeglasses transformations 
+    img_folder = '../CelebAMask-HQ/data_filtered/augmented_id_filtered/'  
+    dst_dir = '../data_files/'
+    generate_csv_for_images(img_folder, dst_dir)
 
 if __name__ == "__main__":
-    main()
+    main() 
 
 

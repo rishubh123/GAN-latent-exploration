@@ -6,7 +6,7 @@ import os
 
 
 def display_landmarks(img, landmarks):
-    print("landmarks shape: ", landmarks.shape)
+    print("landmarks shape: ", landmarks.shape) 
     img_disp = img.copy()
 
     for i in range(0, 68):
@@ -30,11 +30,13 @@ def create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmark
     mask_path = os.path.join(data_root_dir, 'anno-mask', mask_path_root + att + '.png') # Mask for the attribute image 
 
     if (not os.path.exists(mask_path)):
+        print("mask path: ", mask_path)
+        print("Mask path does not exist, returning ... ") 
         return 
 
     # Image names for saving 
-    image_save_name = os.path.join(data_root_dir, 'augmented', src_img_name[:-4] + '_' + att_img_name[:-4] + '_' + att + '.jpg')
-    src_img_save_path = os.path.join(data_root_dir, 'augmented', src_img_name)
+    image_save_name = os.path.join(data_root_dir, 'augmented_id', src_img_name[:-4] + '_' + att_img_name[:-4] + '_' + att + '.jpg')
+    src_img_save_path = os.path.join(data_root_dir, 'augmented_id', src_img_name) 
 
     # print("src img name: ", src_img_name)
     # print("att img name: ", att_img_name)
@@ -115,10 +117,12 @@ def create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmark
     dim = 256
     combined_imgs = np.hstack([cv2.resize(src_img, (dim,dim)), cv2.resize(att_img, (dim, dim)), cv2.resize(mask_img, (dim, dim)), cv2.resize(modified_img, (dim, dim))])
     # cv2.imshow("combined input images", combined_imgs)
-    # cv2.waitKey(10000) 
+    # cv2.waitKey(10000)  
 
-    cv2.imwrite('temp/sample_'+src_img_name[:-4] + att_img_name[:-4] + '.png', combined_imgs)
-    cv2.imwrite(image_save_name, modified_img)
+    # Saving temporarily the image stack
+    cv2.imwrite('temp/sample_'+src_img_name[:-4] + att_img_name[:-4] + '_' + att + '.png', combined_imgs)
+    # Saving only the modified image 
+    cv2.imwrite(image_save_name, modified_img) 
 
 
 def transform_images():
@@ -130,18 +134,20 @@ def transform_images():
     landmarks_df = pd.read_csv('../data_files/landmarks_detected.csv') 
 
     att = '_hat'
-    print("transforming hat")
+    print("transforming hat") 
 
-    n_imgs = 100
-    n_tforms = 5
+    n_imgs = 10
+    n_tforms = 50 
 
     for j in range(0,n_imgs):
+        # Iterating over the source images to be augmented
         idx = np.random.randint(0, src_df.shape[0])
         src_img_name = src_df.iloc[idx]['file_name']
-        for i in range(0,n_tforms): 
+        for i in range(0,n_tforms):  
+            # Iterating over the attribute images which will be used for augmentation 
             idy = np.random.randint(0, att_df.shape[0])
             att_img_name = att_df.iloc[idy]['file_name']
-            create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmarks_df)
+            create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmarks_df) 
         print("transformed {} idx image".format(j)) 
 
 
