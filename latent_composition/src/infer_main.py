@@ -10,7 +10,9 @@ from matplotlib.pyplot import imshow
 # import skvideo.io
 from torchvision import transforms
 import time  
+import pickle 
 
+os.environ['TORCH_EXTENSIONS_DIR'] = '/tmp/torch_cpp/' # needed for stylegan to run
 
 def load_image_tensor(img_path, outdim): 
     transform = transforms.Compose([
@@ -36,13 +38,13 @@ def encode_forward(nets, outdim, img_path):
         
         mask = torch.ones_like(source_im)[:, [0], :, :]
         z = nets.encode(source_im, mask)
-        print("z vector: ", z.shape)
+        # print("z vector: ", z.shape)
         
     return z, save_src_img
 
 
 # Function to perform forward pass of the decoder to convert the latent back to image space 
-def decode_forward(nets, outdim, z):
+def decode_forward(nets, outdim, z): 
     with torch.no_grad():
         out_s = nets.decode(z)
 
@@ -102,18 +104,21 @@ def save_embeddings(nets, outdim, img_path_set, dst_path_set, embds_path_set):
 
 
 # Extract embeddings for all the images in the dataset. This function calls save_embeddings() function internally 
-def extract_latents():
+def extract_latents(src_folder):
     outdim = 1024 # For faces 
-    nets = load_nets()
+    nets = load_nets() 
     root_path = '../CelebAMask-HQ/' 
 
     # Defining the source folder for reading the input images 
-    imgs_path = os.path.join(root_path, 'data_filtered/img')    
+    imgs_path = os.path.join(root_path, 'data_filtered', src_folder)    
     dst_root_path = os.path.join(root_path, 'data_filtered/inversion')
     embds_root_path = os.path.join(root_path, 'data_filtered/latents')
 
+    print("Extracting latents from: ", imgs_path) 
+
     # Defining the file paths as a list to read and save the embeddings 
-    img_names = [img for img in os.listdir(imgs_path)]
+    img_names = [img for img in os.listdir(imgs_path) if img[-4:] == '.jpg']
+    print("Saving latents for : {} images".format(len(img_names)))
     dst_path_set = [os.path.join(dst_root_path, img) for img in img_names]
     imgs_path_set = [os.path.join(imgs_path, img) for img in img_names]
     embds_path_set = [os.path.join(embds_root_path, img[:-4]+'.npy') for img in img_names]  
@@ -125,8 +130,80 @@ def extract_latents():
     dst_path_set = dst_path_set[:]
     ebmds_path_set = embds_path_set[:]
 
-    print("image set: ", imgs_path_set) 
+    # print("image set: ", imgs_path_set) 
     save_embeddings(nets, outdim, imgs_path_set, dst_path_set, ebmds_path_set)  
+
+# This function will compute the latent direction between augmented and the original image for few shot learning. 
+def compute_single_direction_pairwise(att, data_files_root, embds_path_root):
+    pairwise_file_path = os.path.join(data_files_root, 'data_{}.csv'.format(att))
+    print("pair-wise file path: ", pairwise_file_path)
+    files_ = pd.read_csv(pairwise_file_path)
+    latent_diffs = []
+    num_pairs = min(5,len(files_))
+    for i in range(num_pairs):
+        img_orig_name = files_.iloc[i]['Original_img']
+        img_augname = files_.iloc[i]['Transformed_img']
+
+        orig_embd_path = os.path.join(embds_path_root, img_orig_name[:-4] + '.npy')
+        aug_embd_path = os.path.join(embds_path_root, img_augname[:-4] + '.npy')
+
+        orig_latent = np.load(orig_embd_path)
+        aug_latent = np.load(aug_embd_path)
+        diff_latent = aug_latent - orig_latent
+
+        latent_diffs.append(diff_latent) 
+
+    latent_diffs = np.array(latent_diffs)
+    latent_diffs_avg = np.mean(latent_diffs, axis=0) 
+    print("latent diffs shape: {}, latent diffs avg shape: {}".format(latent_diffs.shape, latent_diffs_avg.shape))
+
+    fn = 'avg_latent_dir_pairwise_' + str(num_pairs) + '_' + att + '.npy' 
+    latent_save_name = os.path.join(data_files_root, fn)
+
+    print("saving latent for: ", att, " at: ", latent_save_name)    
+    np.save(latent_save_name, latent_diffs_avg)
+
+# This function computes pairwise direction for a single source image and its multiple transformations 
+def compute_separate_single_direction_pairwise(pairwise_file_path, data_files_root, embds_path_root):
+    print("pair-wise file path: ", pairwise_file_path)
+    files_ = pd.read_csv(pairwise_file_path)
+    latent_diffs = []
+    num_pairs = min(5, files_.shape[0])
+    latent_dirs_dict = {}
+    src_img_name = ''
+
+    for i in range(num_pairs):
+        img_orig_name = files_.iloc[i]['Original_img']
+        img_augname = files_.iloc[i]['Transformed_img']  
+        src_img_name = img_orig_name[:-4] # Img orig is same in all the rows  
+
+        orig_embd_path = os.path.join(embds_path_root, img_orig_name[:-4] + '.npy')
+        aug_embd_path = os.path.join(embds_path_root, img_augname[:-4] + '.npy')
+
+        orig_latent = np.load(orig_embd_path)
+        aug_latent = np.load(aug_embd_path)
+        diff_latent = aug_latent - orig_latent 
+
+        # Saving the Computed latent directions into a dictionary with the id as the augmented image name 
+        latent_dirs_dict[img_augname] = np.array(diff_latent)
+
+    print("latent diffs dict shape: {}".format(len(latent_dirs_dict.keys())))
+
+    fn = 'all_latent_dirs_pairwise' + str(num_pairs) + '_' + src_img_name + '.pkl' 
+    latent_save_name = os.path.join(data_files_root, fn)
+
+    print("saving latent for: ", pairwise_file_path, " at: ", latent_save_name)   
+    
+    # Store data (serialize)
+    with open(latent_save_name, 'wb') as handle:
+        pickle.dump(latent_dirs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+    # Load data (deserialize)
+    with open(latent_save_name, 'rb') as handle:
+        unserialized_data = pickle.load(handle) 
+
+    # print("Checking the saved and read pkl files: ", (latent_dirs_dict == unserialized_data).any())
 
 
 # This function will compute particular dominant dirs for the given attributes and save the estimated direction into a numpy array. 
@@ -140,11 +217,11 @@ def compute_single_direction(att, data_files_root, embds_path_root, n):
     neg_files = pd.read_csv(neg_file_path)
 
     # n = len(pos_files['file_name'])
-    print("iterating over {} files to estimate the direction".format(n))
+    print("iterating over {} files to estimate the direction".format(n)) 
 
     # Looping over i and j to get all the pair-wise differences between the latent code 
     latent_diffs = []
-    for i in range(0, n):
+    for i in range(0, n):  
         for j in range(0, n):
             # Taking ith image and all the pairs for j belong to (0,n)
             img_pos_name = pos_files.iloc[i]['file_name']
@@ -171,7 +248,7 @@ def compute_single_direction(att, data_files_root, embds_path_root, n):
     np.save(latent_save_name, latent_diffs_avg)
 
 
-# Computing directions for each of the atrributes given to the network
+# Computing directions for each of the atrributes given to the network by non-idenity pairs
 def compute_all_directions():  
     atts_list = ['eyeglasses', 'hat', 'smile']
     data_files_root = '../data_files'
@@ -181,6 +258,23 @@ def compute_all_directions():
     for i in range(0, len(atts_list)):
         compute_single_direction(atts_list[i], data_files_root, embds_path_root, n)
 
+# Computing the directions for the id pairs of a image and all its transformation 
+def compute_separate_directions_id_pairs():
+    atts_list = ['eyeglasses', 'hat']
+    data_files_root = '../data_files'
+    embds_path_root = '../CelebAMask-HQ/data_filtered/latents'
+
+    separate_data_files = ['533_hat_transforms.csv',
+                           '1547_hat_transforms.csv',
+                           '8167_eye_g_transforms.csv', 
+                           # '18277_hat_transforms.csv',
+                           '21765_hat_transforms.csv',
+                           '27995_eye_g_transforms.csv'] 
+    
+    separate_data_files = [os.path.join(data_files_root, sdf) for sdf in separate_data_files] 
+
+    for data_file in separate_data_files:
+        compute_separate_single_direction_pairwise(data_file, data_files_root, embds_path_root) 
 
 
 def edit_image(nets, img_path, img_idx, img_transform_path, atts_list, latent_paths):
@@ -214,8 +308,7 @@ def edit_image(nets, img_path, img_idx, img_transform_path, atts_list, latent_pa
 
         print("saving image: ", save_img_path)
         save_img.save(save_img_path) 
-
-
+ 
 
 def edit_image_identity(nets, img_path, img_idx, img_transform_path, atts_list, latent_paths):
     outdim = 1024
@@ -228,7 +321,7 @@ def edit_image_identity(nets, img_path, img_idx, img_transform_path, atts_list, 
         print("loading att latent dir file: ", latent_save_path)
         latent_dir = np.load(latent_save_path)
         latent_dir_tensor = torch.from_numpy(latent_dir).cuda()
-        att_strength = 2.0  
+        att_strength = 40.0
 
         source_im = load_image_tensor(img_path, outdim) 
 
@@ -246,18 +339,94 @@ def edit_image_identity(nets, img_path, img_idx, img_transform_path, atts_list, 
         combined_display_image = np.hstack([save_src_img, save_out_z_img, save_out_zT_img])
         save_img = Image.fromarray(np.uint8(combined_display_image)).convert('RGB') 
 
-        fn = img_idx + '_transformed_' + att + '_' + str(att_strength) + '.jpg'
+        fn = img_idx + '_transformed_nc2_50_id_' + att + '_' + str(att_strength) + '.jpg'
         save_img_path = os.path.join(img_transform_path, fn)
 
         print("saving image: ", save_img_path)
         save_img.save(save_img_path)
 
 
+# computing average direction based on the interpolation weights for latents 
+def compute_intepolate_dir(latents, weights):
+    store = np.zeros(latents[0].shape, dtype = np.float16)
+    for i in range(0, len(weights)):
+        store += latents[i] * weights[i]              
 
+    return store
+
+# Editing images by performing interpolations between different attribute types to create a new attribute 
+def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, latent_path): 
+    outdim = 1024
+    img_save_size = 256 
+    
+    # Load data (deserialize)
+    print("Reading latent from: ", latent_path)
+    with open(latent_path, 'rb') as handle:
+        latent_dirs = pickle.load(handle)
+
+    # Copying the latents into a list for easy manipulations 
+    img_names = []
+    latents = []
+    for k, v in latent_dirs.items():
+        img_names.append(k)
+        latents.append(v) 
+
+    interpolation_values = [[1.0, 0.0, 0.0, 0.0, 0.0],
+                             [0.0, 1.0, 0.0, 0.0, 0.0],
+                             [0.0, 0.0, 1.0, 0.0, 0.0],
+                             [0.0, 0.0, 0.0, 1.0, 0.0],
+                             [0.8, 0.2, 0.0, 0.0, 0.0],
+                             [0.2, 0.8, 0.0, 0.0, 0.0],
+                             [0.0, 0.5, 0.5, 0.0, 0.0],
+                             [0.5, 0.0, 0.5, 0.0, 0.0],
+                             [0.0, 0.5, 0.0, 0.5, 0.0],
+                             [0.0, 0.0, 0.5, 0.5, 0.0]] 
+    # print("Hello .... ")
+    # exit()
+
+    
+    # Iterating over the set of all the interpolation values to be used for averaging 
+    for i in range(0, len(interpolation_values)):
+        weights = interpolation_values[i]
+
+        # Computing the average latent with the given set of weights 
+        avg_latent_dir = compute_intepolate_dir(latents, weights) 
+
+        latent_dir_tensor = torch.from_numpy(avg_latent_dir).cuda() 
+        # print("latent avg type: ", type(avg_latent_dir[0]), "single latent type: ", type(latents[0][0]))
+        # exit()
+
+        z, save_src_img = encode_forward(nets, outdim, img_path)
+
+        alpha = 1.5
+        zT = z + alpha*latent_dir_tensor 
+
+        out_z_img = decode_forward(nets, outdim, z)
+        out_zT_img = decode_forward(nets, outdim, zT)  
+
+        save_out_z_img = renormalize.as_image(out_z_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
+        save_out_zT_img = renormalize.as_image(out_zT_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
+
+        combined_display_image = np.hstack([save_src_img, save_out_z_img, save_out_zT_img])
+        save_img = Image.fromarray(np.uint8(combined_display_image)).convert('RGB') 
+
+        fn = img_idx + '_transformed_interpolate_atts_' + str(weights) + '_w_' + str(alpha) + '.jpg'
+        folder_name = os.path.join(img_transform_path, str(alpha))
+        
+        if (not os.path.exists(folder_name)):
+            os.mkdir(folder_name)
+
+        save_img_path = os.path.join(folder_name, fn) 
+
+        print("saving image: ", save_img_path)
+        save_img.save(save_img_path) 
+
+
+# Editing image set with the saved latents [Vanilla], applying transformation learnt by pairwise imgs and non-paired images 
 def edit_image_set(): 
     nets = load_nets()
     img_path_root = '../CelebAMask-HQ/data_filtered/test_imgs'
-    img_transform_path = '../CelebAMask-HQ/data_filtered/transform_imgs_test_nc2'
+    img_transform_path = '../CelebAMask-HQ/data_filtered/transform_imgs_test_nc2_id'
     data_files_root = '../data_files'
 
     img_idxs = [img for img in os.listdir(img_path_root)]
@@ -269,16 +438,50 @@ def edit_image_set():
     latent_paths = [os.path.join(data_files_root, lp) for lp in latent_paths]
 
     # Number of images to be processed 
-    n = 15
+    n = 5
+    print("Editing {} images".format(n)) 
+
     for i in range(0, n): 
-        edit_image(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths) 
+        # edit_image(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths) 
+        edit_image_identity(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths)
+
+# Editing images with the .pkl latent directions estimated through various augmentations of the inputs 
+def edit_image_set_interpolate_atts(): 
+    nets = load_nets()
+    img_path_root = '../CelebAMask-HQ/data_filtered/test_imgs'
+    img_transform_path = '../CelebAMask-HQ/data_filtered/transform_imgs_test_interpolate_atts'  
+    data_files_root = '../data_files' 
+
+    img_idxs = [img for img in os.listdir(img_path_root)]
+    img_paths = [os.path.join(img_path_root, img_id) for img_id in img_idxs]
+
+    latent_dirs_pkl = 'all_latent_dirs_pairwise5_8167.pkl'
+    # latent_dirs_pkl = 'all_latent_dirs_pairwise5_27995.pkl'
+    
+    latent_path = os.path.join(data_files_root, latent_dirs_pkl) 
+
+    # Number of images to be processed 
+    n = 10
+    print("Editing {} images".format(n)) 
+
+    for i in range(0, n): 
+        edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_path, latent_path)  
+
 
 
 if __name__ == "__main__":  
-  print("running main ...")
-  # extract_latents()
+  # print("running main ...")
+  # src_folder = 'filtered_augmentations_id' 
+  # extract_latents(src_folder)
+  
   # print("computing all directions")
   # compute_all_directions() 
-  print("editing image dirs")
-  edit_image_set()
+
+  # print("Computing direction for all the id pairs of a input image and its transformation ")
+  # compute_separate_directions_id_pairs()
+  # print("editing image dirs")
+  # edit_image_set()
+
+  print("editing image with interpolation of attributes") 
+  edit_image_set_interpolate_atts()
  
