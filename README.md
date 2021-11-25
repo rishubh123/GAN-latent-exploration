@@ -29,7 +29,7 @@ To run the experiments follow these steps to setup the network weights and depen
 ```
  Run the code by running python3 infer_main.py
 ```
-
+<!---
 # Results 
 ## Approach 1 Results 
 ### Editing results for eyeglass attribute editing, alpha: strength of edit operation
@@ -62,4 +62,4 @@ source: input image, inversion: inverted image from GAN
 ### Editing results for hat attribute, alpha: stength of edit operation
 <img width="780" alt="hat" src="https://user-images.githubusercontent.com/16732827/142577001-29559150-fa40-456c-bb0c-e916a552e27c.png">
 
-
+---> 
