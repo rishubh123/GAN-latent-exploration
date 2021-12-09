@@ -355,22 +355,31 @@ def compute_intepolate_dir(latents, weights):
     return store
 
 # Editing images by performing interpolations between different attribute types to create a new attribute 
-def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, latent_path): 
+def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, latent_paths): 
     outdim = 1024
     img_save_size = 256 
-    
-    # Load data (deserialize)
-    print("Reading latent from: ", latent_path)
-    with open(latent_path, 'rb') as handle:
-        latent_dirs = pickle.load(handle)
+    scale_factor = 18
 
-    # Copying the latents into a list for easy manipulations 
-    img_names = []
     latents = []
-    for k, v in latent_dirs.items():
-        img_names.append(k)
-        latents.append(v) 
+    for lp in latent_paths:
+        lat = np.load(lp)
+        lat_leng = np.linalg.norm(lat)
+        lat = scale_factor * lat/lat_leng
+        latents.append(lat)
 
+    print("normalized ", len(lp), " latents")
+
+    basis_latents = [latents[0] - latents[1],
+                     latents[0] - latents[2],
+                     latents[1] - latents[3],
+                     latents[6] - latents[1],
+                     latents[0] - latents[4],
+                     latents[6] - latents[4],
+                     latents[3] - latents[4]]
+
+    dc_shift = latents[0]
+
+    """
     interpolation_values = [[1.0, 0.0, 0.0, 0.0, 0.0],
                              [0.0, 1.0, 0.0, 0.0, 0.0],
                              [0.0, 0.0, 1.0, 0.0, 0.0],
@@ -381,24 +390,28 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
                              [0.5, 0.0, 0.5, 0.0, 0.0],
                              [0.0, 0.5, 0.0, 0.5, 0.0],
                              [0.0, 0.0, 0.5, 0.5, 0.0]] 
+    """
     # print("Hello .... ")
     # exit()
 
+    basis_coeffs = [[round(np.random.uniform(-0.35, 0.35),2) for i in range(0,7)] for j in range(0,10)]
+    print("basis coeffs: ", basis_coeffs)
     
     # Iterating over the set of all the interpolation values to be used for averaging 
-    for i in range(0, len(interpolation_values)):
-        weights = interpolation_values[i]
+    for i in range(0, len(basis_coeffs)):
+        weights = basis_coeffs[i]
 
         # Computing the average latent with the given set of weights 
-        avg_latent_dir = compute_intepolate_dir(latents, weights) 
+        avg_latent_dir = compute_intepolate_dir(basis_latents, weights) 
 
+        avg_latent_dir = avg_latent_dir + dc_shift
         latent_dir_tensor = torch.from_numpy(avg_latent_dir).cuda() 
         # print("latent avg type: ", type(avg_latent_dir[0]), "single latent type: ", type(latents[0][0]))
         # exit()
 
         z, save_src_img = encode_forward(nets, outdim, img_path)
 
-        alpha = 1.5
+        alpha = 1.0
         zT = z + alpha*latent_dir_tensor 
 
         out_z_img = decode_forward(nets, outdim, z)
@@ -410,7 +423,7 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
         combined_display_image = np.hstack([save_src_img, save_out_z_img, save_out_zT_img])
         save_img = Image.fromarray(np.uint8(combined_display_image)).convert('RGB') 
 
-        fn = img_idx + '_transformed_interpolate_atts_' + str(weights) + '_w_' + str(alpha) + '.jpg'
+        fn = img_idx + '_transformed_interpolate_atts_average5_norm_basis_eg' + str(weights) + '_w_' + str(alpha) + '.jpg'
         folder_name = os.path.join(img_transform_path, str(alpha))
         
         if (not os.path.exists(folder_name)):
@@ -449,7 +462,7 @@ def edit_image_set():
 def edit_image_set_interpolate_atts(): 
     nets = load_nets()
     img_path_root = '../CelebAMask-HQ/data_filtered/test_imgs'
-    img_transform_path = '../CelebAMask-HQ/data_filtered/transform_imgs_test_interpolate_atts'  
+    img_transform_path = '../CelebAMask-HQ/data_filtered/transform_imgs_test_interpolate_atts_average5_norm_basis_eg'  
     data_files_root = '../data_files' 
 
     img_idxs = [img for img in os.listdir(img_path_root)]
@@ -457,15 +470,19 @@ def edit_image_set_interpolate_atts():
 
     latent_dirs_pkl = 'all_latent_dirs_pairwise5_8167.pkl'
     # latent_dirs_pkl = 'all_latent_dirs_pairwise5_27995.pkl'
-    
     latent_path = os.path.join(data_files_root, latent_dirs_pkl) 
+
+    latent_paths = ['888','1565','2686','4081','4289','5220','6114','29778','29995']
+    latent_paths = [lp + '__eye_g_transform_average_5_imgs_eyeglasses.npy' for lp in latent_paths]
+    latent_paths = [os.path.join(data_files_root, lp) for lp in latent_paths]
+    
 
     # Number of images to be processed 
     n = 10
     print("Editing {} images".format(n)) 
 
     for i in range(0, n): 
-        edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_path, latent_path)  
+        edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_path, latent_paths)  
 
 
 
@@ -483,5 +500,5 @@ if __name__ == "__main__":
   # edit_image_set()
 
   print("editing image with interpolation of attributes") 
-  edit_image_set_interpolate_atts()
+  edit_image_set_interpolate_atts() 
  
