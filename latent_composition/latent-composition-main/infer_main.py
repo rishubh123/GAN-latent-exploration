@@ -365,17 +365,17 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
         lat = np.load(lp)
         lat_leng = np.linalg.norm(lat)
         lat = scale_factor * lat/lat_leng
+        print("lat leng: ", lat_leng)
         latents.append(lat)
 
-    print("normalized ", len(lp), " latents")
 
     basis_latents = [latents[0] - latents[1],
                      latents[0] - latents[2],
                      latents[1] - latents[3],
                      latents[6] - latents[1],
-                     latents[0] - latents[4],
-                     latents[6] - latents[4],
-                     latents[3] - latents[4]]
+                     latents[0] - latents[7],
+                     latents[6] - latents[2],
+                     latents[3] - latents[8]]
 
     dc_shift = latents[0]
 
@@ -405,6 +405,9 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
         avg_latent_dir = compute_intepolate_dir(basis_latents, weights) 
 
         avg_latent_dir = avg_latent_dir + dc_shift
+        # print("norm length of average latent: ", np.linalg.norm(avg_latent_dir))
+        # exit()
+
         latent_dir_tensor = torch.from_numpy(avg_latent_dir).cuda() 
         # print("latent avg type: ", type(avg_latent_dir[0]), "single latent type: ", type(latents[0][0]))
         # exit()
@@ -478,7 +481,7 @@ def edit_image_set_interpolate_atts():
     
 
     # Number of images to be processed 
-    n = 10
+    n = 1
     print("Editing {} images".format(n)) 
 
     for i in range(0, n): 
