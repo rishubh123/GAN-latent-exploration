@@ -310,11 +310,58 @@ def edit_image(nets, img_path, img_idx, img_transform_path, atts_list, latent_pa
         save_img.save(save_img_path) 
  
 
+# Edit image function for generating group of image results with various alpha values 
+def edit_image_group(nets, img_paths, img_idxs, img_transform_path, att, latent_path):
+    outdim = 1024
+    img_save_size = 256 
+
+    print("loading att latent dir file: ", latent_path)
+    latent_dir = np.load(latent_path)
+    latent_dir_tensor = torch.from_numpy(latent_dir).cuda()
+
+    # number of images to be edited 
+    n = 5
+    image_matrix = []
+    for i in range(11, 11+n):
+        img_path = img_paths[i]
+        z, save_src_img = encode_forward(nets, outdim, img_path)
+
+        alphas = [0.6, 0.8, 1.0, 1.5, 2.0]
+        image_column = []
+
+        # Inverted image
+        out_z_img = decode_forward(nets, outdim, z)
+        save_out_z_img = renormalize.as_image(out_z_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
+        image_column.append(save_out_z_img)
+
+        for alpha in alphas:
+            zT = z + alpha*latent_dir_tensor
+
+            # Transformed image 
+            out_zT_img = decode_forward(nets, outdim, zT) 
+            save_out_zT_img = renormalize.as_image(out_zT_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
+
+            image_column.append(save_out_zT_img)
+
+        image_column = np.vstack(image_column)
+        image_matrix.append(image_column) 
+        # print("image column shape: ", image_column.shape)
+
+    group_image = np.hstack(image_matrix)
+    print("group image shape: ", group_image.shape)
+    save_img = Image.fromarray(np.uint8(group_image)).convert('RGB') 
+    fn = 'report_transform_imgs_test_nc2' + att + '_' + str(alpha) + '.jpg'
+    save_img_path = os.path.join(img_transform_path, fn)
+
+    print("saving image: ", save_img_path)
+    save_img.save(save_img_path) 
+ 
+
 def edit_image_identity(nets, img_path, img_idx, img_transform_path, atts_list, latent_paths):
     outdim = 1024
-    img_save_size = 256
+    img_save_size = 256 
     
-    for i in range(0, len(atts_list)):
+    for i in range(0, len(atts_list)): 
         att = atts_list[i]
         latent_save_path = latent_paths[i] 
 
@@ -414,8 +461,8 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
 
         z, save_src_img = encode_forward(nets, outdim, img_path)
 
-        alpha = 1.0
-        zT = z + alpha*latent_dir_tensor 
+        alpha = 0.8
+        zT = z + alpha*latent_dir_tensor  
 
         out_z_img = decode_forward(nets, outdim, z)
         out_zT_img = decode_forward(nets, outdim, zT)  
@@ -457,9 +504,15 @@ def edit_image_set():
     n = 5
     print("Editing {} images".format(n)) 
 
-    for i in range(0, n): 
-        # edit_image(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths) 
-        edit_image_identity(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths)
+    # Module for performing image edit in a batch and saving a single png image
+    img_transform_path = '../CelebAMask-HQ/data_filtered/report_transform_imgs_test_nc2'
+    for i in range(0, len(atts_list)): 
+        edit_image_group(nets, img_paths, img_idxs, img_transform_path, atts_list[i], latent_paths[i]) 
+
+    # Not saving the images individually the usual way 
+    # for i in range(0, n): 
+    #     # edit_image(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths) 
+    #     edit_image_identity(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths)
 
 # Editing images with the .pkl latent directions estimated through various augmentations of the inputs 
 def edit_image_set_interpolate_atts(): 
@@ -481,7 +534,7 @@ def edit_image_set_interpolate_atts():
     
 
     # Number of images to be processed 
-    n = 1
+    n = 10
     print("Editing {} images".format(n)) 
 
     for i in range(0, n): 
@@ -490,7 +543,7 @@ def edit_image_set_interpolate_atts():
 
 
 if __name__ == "__main__":  
-  # print("running main ...")
+  print("running main ...")
   # src_folder = 'filtered_augmentations_id' 
   # extract_latents(src_folder)
   
@@ -499,9 +552,9 @@ if __name__ == "__main__":
 
   # print("Computing direction for all the id pairs of a input image and its transformation ")
   # compute_separate_directions_id_pairs()
-  # print("editing image dirs")
-  # edit_image_set()
+  print("editing image dirs")
+  edit_image_set()
 
-  print("editing image with interpolation of attributes") 
-  edit_image_set_interpolate_atts() 
+  # print("editing image with interpolation of attributes") 
+  # edit_image_set_interpolate_atts() 
  
