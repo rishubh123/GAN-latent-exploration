@@ -133,7 +133,7 @@ def extract_latents(src_folder):
     # print("image set: ", imgs_path_set) 
     save_embeddings(nets, outdim, imgs_path_set, dst_path_set, ebmds_path_set)  
 
-# This function will compute the latent direction between augmented and the original image for few shot learning. 
+# 5-5 config This function will compute the latent direction between augmented and the original image for few shot learning. 
 def compute_single_direction_pairwise(att, data_files_root, embds_path_root):
     pairwise_file_path = os.path.join(data_files_root, 'data_{}.csv'.format(att))
     print("pair-wise file path: ", pairwise_file_path)
@@ -163,18 +163,19 @@ def compute_single_direction_pairwise(att, data_files_root, embds_path_root):
     print("saving latent for: ", att, " at: ", latent_save_name)    
     np.save(latent_save_name, latent_diffs_avg)
 
-# This function computes pairwise direction for a single source image and its multiple transformations 
+# 1-n config. This function computes pairwise direction for a single source image and its multiple transformations 
 def compute_separate_single_direction_pairwise(pairwise_file_path, data_files_root, embds_path_root):
     print("pair-wise file path: ", pairwise_file_path)
     files_ = pd.read_csv(pairwise_file_path)
+    print("files head of data:", files_.head())
     latent_diffs = []
     num_pairs = min(5, files_.shape[0])
     latent_dirs_dict = {}
     src_img_name = ''
 
     for i in range(num_pairs):
-        img_orig_name = files_.iloc[i]['Original_img']
-        img_augname = files_.iloc[i]['Transformed_img']  
+        img_orig_name = files_.iloc[i]['Original_Image']
+        img_augname = files_.iloc[i]['Augmented_Image']  
         src_img_name = img_orig_name[:-4] # Img orig is same in all the rows  
 
         orig_embd_path = os.path.join(embds_path_root, img_orig_name[:-4] + '.npy')
@@ -269,9 +270,13 @@ def compute_separate_directions_id_pairs():
                            '8167_eye_g_transforms.csv', 
                            # '18277_hat_transforms.csv',
                            '21765_hat_transforms.csv',
-                           '27995_eye_g_transforms.csv'] 
+                           '27995_eye_g_transforms.csv']  
     
     separate_data_files = [os.path.join(data_files_root, sdf) for sdf in separate_data_files] 
+
+
+    separate_data_files = ['synth_aug_55_data_eyeglasses.csv', 'synth_aug_55_data_hat.csv'] 
+    separate_data_files = [os.path.join(data_files_root, sd) for sd in separate_data_files]
 
     for data_file in separate_data_files:
         compute_separate_single_direction_pairwise(data_file, data_files_root, embds_path_root) 
@@ -317,7 +322,7 @@ def edit_image_group(nets, img_paths, img_idxs, img_transform_path, att, latent_
 
     print("loading att latent dir file: ", latent_path)
     latent_dir = np.load(latent_path)
-    latent_dir_tensor = torch.from_numpy(latent_dir).cuda()
+    latent_dir_tensor = torch.from_numpy(latent_dir).cuda()    
 
     # number of images to be edited 
     n = 5
@@ -326,7 +331,7 @@ def edit_image_group(nets, img_paths, img_idxs, img_transform_path, att, latent_
         img_path = img_paths[i]
         z, save_src_img = encode_forward(nets, outdim, img_path)
 
-        alphas = [0.6, 0.8, 1.0, 1.5, 2.0]
+        alphas = [0.6, 0.8, 1.0, 1.5] 
         image_column = []
 
         # Inverted image
@@ -335,6 +340,7 @@ def edit_image_group(nets, img_paths, img_idxs, img_transform_path, att, latent_
         image_column.append(save_out_z_img)
 
         for alpha in alphas:
+            # print("using alpha value of:", alpha)
             zT = z + alpha*latent_dir_tensor
 
             # Transformed image 
@@ -438,7 +444,6 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
                              [0.0, 0.5, 0.0, 0.5, 0.0],
                              [0.0, 0.0, 0.5, 0.5, 0.0]] 
     """
-    # print("Hello .... ")
     # exit()
 
     basis_coeffs = [[round(np.random.uniform(-0.35, 0.35),2) for i in range(0,7)] for j in range(0,10)]
@@ -485,6 +490,80 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, lat
         save_img.save(save_img_path) 
 
 
+
+# Editing images by performing interpolations between different attribute types to create a new attribute 
+def edit_image_interpolate_atts_group(nets, img_path, img_idx, img_transform_path, latent_paths): 
+    outdim = 1024
+    img_save_size = 256 
+    scale_factor = 18           
+
+    latents = []
+    for lp in latent_paths:
+        lat = np.load(lp)
+        lat_leng = np.linalg.norm(lat)
+        lat = scale_factor * lat/lat_leng
+        # print("lat leng: ", lat_leng)
+        latents.append(lat)
+
+
+    basis_latents = [latents[0] - latents[1],
+                     latents[0] - latents[2],
+                     latents[1] - latents[3],
+                     latents[6] - latents[1],
+                     latents[0] - latents[5], # 7
+                     latents[6] - latents[2],
+                     latents[3] - latents[8]]
+
+    dc_shift = latents[0]
+    # exit()
+
+    basis_coeffs = [[round(np.random.uniform(-0.35, 0.35),2) for i in range(0,7)] for j in range(0,10)]
+    # print("basis coeffs: ", basis_coeffs)
+
+    image_matrix = []
+    # Source image decode latent code 
+    z, save_src_img = encode_forward(nets, outdim, img_path)
+    out_z_img = decode_forward(nets, outdim, z)
+    save_out_z_img = renormalize.as_image(out_z_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS) 
+
+    # Creating additional first row just to cover only single input source image
+    first_row = np.ones((256, 10*256, 3)) * 255
+    first_row[:256, :256, :] = save_out_z_img 
+    image_matrix.append(first_row) 
+
+    alphas = [0.8, 1.0, 1.2]    
+    for alpha in alphas:
+        # Iterating over the set of all the interpolation values to be used for averaging 
+        image_row = []
+
+        for i in range(0, len(basis_coeffs)):
+            weights = basis_coeffs[i]
+
+            # Computing the average latent with the given set of weights 
+            avg_latent_dir = compute_intepolate_dir(basis_latents, weights) 
+            avg_latent_dir = avg_latent_dir + dc_shift 
+
+            latent_dir_tensor = torch.from_numpy(avg_latent_dir).cuda() 
+
+            zT = z + alpha*latent_dir_tensor  
+
+            out_zT_img = decode_forward(nets, outdim, zT)  
+            save_out_zT_img = renormalize.as_image(out_zT_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
+            image_row.append(save_out_zT_img)  
+
+        image_row = np.hstack(image_row)
+        image_matrix.append(image_row)  
+
+    image_matrix = np.vstack(image_matrix)
+    save_img = Image.fromarray(np.uint8(image_matrix)).convert('RGB') 
+
+    fn = img_idx[:-4] + 'report_transform_imgs_test_att_interpolate_norm_basis' + '.jpg'
+    save_img_path = os.path.join(img_transform_path, fn) 
+
+    print("saving image: ", save_img_path)
+    save_img.save(save_img_path) 
+
+
 # Editing image set with the saved latents [Vanilla], applying transformation learnt by pairwise imgs and non-paired images 
 def edit_image_set(): 
     nets = load_nets()
@@ -505,14 +584,17 @@ def edit_image_set():
     print("Editing {} images".format(n)) 
 
     # Module for performing image edit in a batch and saving a single png image
-    img_transform_path = '../CelebAMask-HQ/data_filtered/report_transform_imgs_test_nc2'
-    for i in range(0, len(atts_list)): 
-        edit_image_group(nets, img_paths, img_idxs, img_transform_path, atts_list[i], latent_paths[i]) 
+    # img_transform_path = '../CelebAMask-HQ/data_filtered/report_transform_imgs_test_synthesized_5pairs'
+    # atts_list = ['eyeglasses', 'hat']
+    # latent_paths = ['avg_latent_dir_pairwise_5_eyeglasses_synth_aug.npy', 'avg_latent_dir_pairwise_5_hat_synth_aug.npy']
+    # latent_paths = [os.path.join(data_files_root, lp) for lp in latent_paths]
 
-    # Not saving the images individually the usual way 
-    # for i in range(0, n): 
-    #     # edit_image(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths) 
-    #     edit_image_identity(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths)
+    # for i in range(0, len(atts_list)): 
+    #     edit_image_group(nets, img_paths, img_idxs, img_transform_path, atts_list[i], latent_paths[i]) 
+
+    for i in range(0, n): 
+        # edit_image(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths) 
+        edit_image_identity(nets, img_paths[i], img_idxs[i], img_transform_path, atts_list, latent_paths)
 
 # Editing images with the .pkl latent directions estimated through various augmentations of the inputs 
 def edit_image_set_interpolate_atts(): 
@@ -537,24 +619,29 @@ def edit_image_set_interpolate_atts():
     n = 10
     print("Editing {} images".format(n)) 
 
-    for i in range(0, n): 
-        edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_path, latent_paths)  
+    # Images saving for multiple variations for a single image and creating a matrix collage out of it
+    img_transform_path = img_transform_path = '../CelebAMask-HQ/data_filtered/report_transform_imgs_test_att_interpolate_norm_basis/'  
+
+    for i in range(4, 4+n): 
+        # edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_path, latent_paths)  
+        edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_path, latent_paths)
 
 
 
 if __name__ == "__main__":  
   print("running main ...")
-  # src_folder = 'filtered_augmentations_id' 
+  # src_folder = 'filtered_augmentations' 
   # extract_latents(src_folder)
   
   # print("computing all directions")
   # compute_all_directions() 
 
-  # print("Computing direction for all the id pairs of a input image and its transformation ")
+  # print("Computing direction for all the id pairs of a input image and its transformation 5-5 ")
   # compute_separate_directions_id_pairs()
-  print("editing image dirs")
-  edit_image_set()
 
-  # print("editing image with interpolation of attributes") 
-  # edit_image_set_interpolate_atts() 
+  # print("editing image dirs") 
+  # edit_image_set()
+
+  print("editing image with interpolation of attributes") 
+  edit_image_set_interpolate_atts() 
  
