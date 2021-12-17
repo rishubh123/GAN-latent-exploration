@@ -5,7 +5,7 @@ import math
 import os 
 
 
-def display_landmarks(img, landmarks):
+def display_landmarks(img, landmarks): 
     print("landmarks shape: ", landmarks.shape) 
     img_disp = img.copy()
 
@@ -35,8 +35,8 @@ def create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmark
         return 
 
     # Image names for saving 
-    image_save_name = os.path.join(data_root_dir, 'augmented_id', src_img_name[:-4] + '_' + att_img_name[:-4] + '_' + att + '.jpg')
-    src_img_save_path = os.path.join(data_root_dir, 'augmented_id', src_img_name) 
+    image_save_name = os.path.join(data_root_dir, 'augmented_id_multiple', src_img_name[:-4] + '_' + att_img_name[:-4] + '_' + att + '.jpg')
+    src_img_save_path = os.path.join(data_root_dir, 'augmented_id_multiple', src_img_name) 
 
     # print("src img name: ", src_img_name)
     # print("att img name: ", att_img_name)
@@ -126,18 +126,49 @@ def create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmark
 
 
 def transform_images():
+    np.random.seed(1)
     data_root_dir = '../CelebAMask-HQ/data_filtered/'
     
-    att_df = pd.read_csv('../data_files/hat_pos_500.csv')
-    src_df = pd.read_csv('../data_files/hat_neg_500.csv')
+    att_df = pd.read_csv('../data_files/eyeglasses_pos_500.csv')
+    src_df = pd.read_csv('../data_files/eyeglasses_neg_500.csv')
 
     landmarks_df = pd.read_csv('../data_files/landmarks_detected.csv') 
 
-    att = '_hat'
-    print("transforming hat") 
+    att = '_eye_g' 
+    print("transforming eyeglasses") 
 
-    n_imgs = 10
-    n_tforms = 50 
+    # Filtered eyeglasses with variation to estimate the eyeglass manifold 
+    eye_glasses = ['168', '1153', '1183', '1158', '1802', '4967', '1856', '3078', '3089', '4015', '4389', '6513']
+    sun_glasses = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', 
+                   '5220', '6114', '29778', '29995']
+                   # Removed from sun_glasses list [410, 4219, 2442, 3017, 4969, 3751]
+
+    eye_glasses = [e + '.jpg' for e in eye_glasses]
+    sun_glasses = [s + '.jpg' for s in sun_glasses]
+
+    eye_glasses_filtered = []
+    sun_glasses_filtered = []  
+
+    # Filtering the idxs for these images
+    for i in range(0, att_df.shape[0]):
+        if (att_df.iloc[i]['file_name'] in eye_glasses):
+            eye_glasses_filtered.append(i)
+        if (att_df.iloc[i]['file_name'] in sun_glasses):
+            sun_glasses_filtered.append(i)
+
+
+    print("eye_glasses_filtered: ", eye_glasses_filtered)
+    print("sun glasses filtered: ", sun_glasses_filtered) 
+
+    # We will be using fixed set of images to extract eyeglasses or spectacles for a experiment 
+    # att_imgs_list = np.random.randint(0, att_df.shape[0], n_tforms)
+    
+    # Working with only the sunglasses: 
+    att_imgs_list = sun_glasses_filtered
+    print("atts_imgs_list: ", att_imgs_list)
+
+    n_imgs = 15
+    n_tforms = len(att_imgs_list)
 
     for j in range(0,n_imgs):
         # Iterating over the source images to be augmented
@@ -145,15 +176,45 @@ def transform_images():
         src_img_name = src_df.iloc[idx]['file_name']
         for i in range(0,n_tforms):  
             # Iterating over the attribute images which will be used for augmentation 
-            idy = np.random.randint(0, att_df.shape[0])
+            
+            # idy = np.random.randint(0, att_df.shape[0])
+            # Fixing the attribute image for current experiment
+
+            idy = att_imgs_list[i]
             att_img_name = att_df.iloc[idy]['file_name']
             create_augmentation(data_root_dir, src_img_name, att_img_name, att, landmarks_df) 
         print("transformed {} idx image".format(j)) 
 
 
-def main():
-    transform_images()
+# This function will create a csv with the original file_name and its transformed version for attribute interpolation
+def create_csv_for_transformations(src_folder_path, save_file_name):
+    fnames = [fn for fn in os.listdir(src_folder_path)]
 
+    data_table = []
+    # Traversing the originals
+    for fn in fnames:
+        if (fn[-5:] != 'g.jpg'):
+            prefix_name = fn[:-4]
+            str_len = len(prefix_name)
+            tforms_names = []
+            for tn in fnames:
+                if (tn[:str_len] == prefix_name and tn[-5:] == 'g.jpg'):
+                    data_table.append([fn, tn])
+
+    
+    data_table = np.array(data_table)
+    print("generated data table: ", data_table)
+    df = pd.DataFrame(columns=['Original_img', 'Transformed_img'], data = data_table)
+
+    print("Saving the csv to location: ", save_file_name)
+    df.to_csv(save_file_name)
+    
+
+def main():
+    # transform_images()
+    src_folder_path = '../CelebAMask-HQ/data_filtered/filtered_augmented_id_multiple'
+    save_file_name = '../data_files/' + 'multiple_sun_glasses_att_transform.csv'
+    create_csv_for_transformations(src_folder_path, save_file_name)
 
 if __name__ == "__main__":
     main()
