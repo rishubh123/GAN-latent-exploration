@@ -158,14 +158,14 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
     att_img_path = os.path.join(data_root_dir, 'img', att_img_name)  # Source positive image path from which the attribute will be extracted 
 
     # In which folder the augmentations should be saved 
-    folder_name_aug = os.path.join('augmented', att)
-    if (not os.path.exists(folder_name_aug)):
-        print("Folder does not exists for augmentation: ", folder_name_aug)
-        os.mkdir(folder_name_aug)
+    folder_path_aug = os.path.join(data_root_dir, 'augmentations', att)
+    if (not os.path.exists(folder_path_aug)):
+        print("Folder does not exists for augmentation: ", folder_path_aug)
+        os.mkdir(folder_path_aug)
 
     # Image name and path for saving the augmented images, for augmented image, prefix of both the negative and positive images are passed
-    aug_image_save_path = os.path.join(data_root_dir, folder_name_aug, src_img_name[:-4] + '_' + att_img_name[:-4] + '_' + att + '.jpg')
-    src_img_save_path = os.path.join(data_root_dir, folder_name_aug, src_img_name) 
+    aug_image_save_path = os.path.join(folder_path_aug, src_img_name[:-4] + '_' + att_img_name[:-4] + '_' + att + '.jpg')
+    src_img_save_path = os.path.join(folder_path_aug, src_img_name) 
 
     if (debug_flag):
         print("src img name: ", src_img_name)
@@ -177,7 +177,8 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
     mask_img = cv2.resize(segm, (src_img.shape[0], src_img.shape[1])) # Resizing mask image to match the src image to 1024x1024
 
     # Creating the augmentation by mapping the masked region from the negative and unmasked region from the positive attribute image.
-    modified_img = mask_img * att_img + (1-mask_img) * src_img
+    mask_img_norm = mask_img / 255.0
+    modified_img = mask_img_norm * att_img + (1-mask_img_norm) * src_img          
     
     # Dimensions for saving the image 
     dim = 256
@@ -185,13 +186,16 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
     combined_imgs = np.hstack([cv2.resize(src_img, (dim,dim)), cv2.resize(att_img, (dim, dim)), cv2.resize(mask_img, (dim, dim)), cv2.resize(modified_img, (dim, dim))])
     
     if (debug_flag):
-        cv2.imshow("combined input images", combined_imgs)
-        cv2.waitKey(10000)  
+        print("Displaying images ...")
+        # cv2.imshow("combined input images", combined_imgs)
+        # cv2.waitKey(10000)  
 
     # Saving temporarily the image stack analysis 
     cv2.imwrite('temp/sample_'+src_img_name[:-4] + att_img_name[:-4] + '_' + att + '.png', combined_imgs)
     
     # Saving the source image into the save folder for easy processing and saving the augmented image along with that 
+    print("Saving image to: ", src_img_save_path)
+    print("Saving aug image to: ", aug_image_save_path)
     cv2.imwrite(src_img_save_path, src_img)
     cv2.imwrite(aug_image_save_path, modified_img) 
     
@@ -201,12 +205,12 @@ def create_global_segm(data_root_dir, att_img_name, att):
     
     # If we are working with any of these below attributes the regions are contained in only one single part segmentation mask
     if (att == 'hat' or att == 'eye_g' or att == 'hair'):
-        mask_path = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + att + '.png') # Mask for the attribute image 
+        mask_path = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + '_' + att + '.png') # Mask for the attribute image 
         
         if (not os.path.exists(mask_path)):
             print("mask path: ", mask_path)
             print("Mask path does not exist, returning ... ") 
-            return 
+            return False, None
 
         if (debug_flag):
             print("mask path: ", mask_path)
@@ -215,13 +219,13 @@ def create_global_segm(data_root_dir, att_img_name, att):
 
     # For eye region we have to read two separate semgentation masks, one for the right eye and another one for the left eye 
     elif (att == 'eye'):
-        mask_path1 = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + 'r_eye ' + '.png') # Mask path for the right eye
-        mask_path2 = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + 'l_eye' + '.png') # Mask path for the left eye
+        mask_path1 = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + '_r_eye' + '.png') # Mask path for the right eye
+        mask_path2 = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + '_l_eye' + '.png') # Mask path for the left eye
 
         if (not (os.path.exists(mask_path1) and os.path.exists(mask_path2))):
             print("mask path: ", mask_path1, " or ", mask_path2)
             print("Mask path does not exist, returning ... ") 
-            return 
+            return False, None 
 
         mask_img1 = cv2.imread(mask_path1)
         mask_img2 = cv2.imread(mask_path2)
@@ -238,7 +242,7 @@ def create_global_segm(data_root_dir, att_img_name, att):
         if (not (os.path.exists(mask_path1) and os.path.exists(mask_path2) and os.path.exists(mask_path3))):
             print("Either of the three mask paths does not exists: ", mask_path1, mask_path2, mask_path3)
             print("Mask path does not exist, returning ... ") 
-            return 
+            return False, None
 
         mask_img1 = cv2.imread(mask_path1)
         mask_img2 = cv2.imread(mask_path2)
@@ -247,7 +251,7 @@ def create_global_segm(data_root_dir, att_img_name, att):
         # combining the two mask images to create a single mask 
         mask_img = mask_img1 + mask_img2 + mask_img3
 
-    return mask_img
+    return True, mask_img
     
 
 
@@ -257,12 +261,16 @@ def augment_images(data_root_dir, att, src_img_name, att_img_list):
     n_tforms = len(att_img_list)  
     
     for id in range(0, n_tforms): 
-        att_img_name = att_img_list[att_img_name]
+        att_img_name = att_img_list[id]
 
         # Extracting the segmentation mask for any given attribute edit. Some edits such as lips and eyes require two segmentation masks to be combined into one 
-        segm = create_global_segm(att_img_name, att)
-        cv2.imshow('segmask for '+ att, segm)
-        cv2.waitKey(2000)
+        flag_mask, segm = create_global_segm(data_root_dir, att_img_name, att)
+
+        if (flag_mask == False):
+            print("continuing ")
+            continue
+        # cv2.imshow('segm' + att, segm)
+        # cv2.waitKey(2000)      
 
         # Now we can create augmentations for the input image and given attribute image with its combined segmentation mask 
         create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name, segm, att)
@@ -270,16 +278,51 @@ def augment_images(data_root_dir, att, src_img_name, att_img_list):
 
 # This function provides the functionality to augment all the images upto some number by various transformations from the attribute types 
 def batch_augment_images():
-    data_root_dir = '../CelebAMask-HQ/data_filtered/'  
-    src_df = pd.read_csv('../data_files/eyeglasses_neg_500.csv')  
+    np.random.seed(1)
+    data_root_dir = '../CelebAMask-HQ/data_filtered/renew'  
 
     # Transforming eyeglass attribute 
+    """
     att = 'eye_g'
-    eyeg_img_list = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', '5220', '6114', '29778', '29995', 
+    src_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_neg.csv')  
+    eyeg_img_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_pos.csv')
+    att_img_list = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', '5220', '6114', '29778', '29995', 
                     '168', '1153', '1183', '1158', '1802', '4967', '1856', '3078', '3089', '4015', '4389', '6513']
+                    
+    """
 
-    att_img_list = [s + '.jpg' for s in eyeg_img_list]
+    # Transforming hair attribute 
+    """
+    att = 'hair'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_neg.csv')  
+    hair_img_df = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_pos.csv') 
+    print("hair image df head:") 
+    print(hair_img_df.head())
+    att_img_list = list(hair_img_df[:25]['file_name'])  
+    """
 
+    # Transforming smile attribute 
+    """
+    att = 'smile'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Smiling_neg.csv')  
+    smile_img_df = pd.read_csv('../data_files/attribute_datasets/Smiling_pos.csv')
+    att_img_list = list(smile_img_df[:25]['file_name'])
+    """
+
+    # Transforming eye attribute
+    """
+    att = 'eye'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Narrow_Eyes_neg.csv')
+    eye_img_df = pd.read_csv('../data_files/attribute_datasets/Narrow_Eyes_pos.csv')
+    att_img_list = list(eye_img_df[:25]['file_name']) 
+    """ 
+
+    # Transforming hat attribute
+    att = 'hat'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Wearing_Hat_neg.csv')
+    hat_img_df = pd.read_csv('../data_files/attribute_datasets/Wearing_Hat_pos.csv')
+    att_img_list = list(hat_img_df[:25]['file_name'])    
+ 
     n_imgs = 1 
     # Iterating over the source images to be augmented
     for j in range(0,n_imgs):
@@ -287,72 +330,9 @@ def batch_augment_images():
         src_img_name = src_df.iloc[idx]['file_name'] 
 
         # Calling the augmentation algorithm for the given source image and all the various types of given attribute iamge set. 
-        augment_images(data_root_dir, att, src_img_name, att_img_list)    
+        augment_images(data_root_dir, att, src_img_name, att_img_list)     
 
-    print("transformed {} idx image".format(j)) 
-
-
-"""
-def transform_images():
-    np.random.seed(1)
-    data_root_dir = '../CelebAMask-HQ/data_filtered/'
-    
-    att_df = pd.read_csv('../data_files/eyeglasses_pos_500.csv')
-    src_df = pd.read_csv('../data_files/eyeglasses_neg_500.csv')
-
-    landmarks_df = pd.read_csv('../data_files/landmarks_detected.csv')   
-
-    att = '_eye_g' 
-    print("transforming eyeglasses") 
-
-    # Filtered eyeglasses with variation to estimate the eyeglass manifold 
-    eye_glasses = ['168', '1153', '1183', '1158', '1802', '4967', '1856', '3078', '3089', '4015', '4389', '6513']
-    sun_glasses = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', 
-                   '5220', '6114', '29778', '29995']
-                   # Removed from sun_glasses list [410, 4219, 2442, 3017, 4969, 3751]
-
-    eye_glasses = [e + '.jpg' for e in eye_glasses]
-    sun_glasses = [s + '.jpg' for s in sun_glasses] 
-
-    eye_glasses_filtered = []
-    sun_glasses_filtered = []  
-
-    # Filtering the idxs for these images
-    for i in range(0, att_df.shape[0]):
-        if (att_df.iloc[i]['file_name'] in eye_glasses):
-            eye_glasses_filtered.append(i)
-        if (att_df.iloc[i]['file_name'] in sun_glasses):
-            sun_glasses_filtered.append(i)
-
-
-    print("eye_glasses_filtered: ", eye_glasses_filtered)
-    print("sun glasses filtered: ", sun_glasses_filtered) 
-
-    # We will be using fixed set of images to extract eyeglasses or spectacles for a experiment 
-    # att_imgs_list = np.random.randint(0, att_df.shape[0], n_tforms)
-    
-    # Working with only the sunglasses: 
-    att_imgs_list = sun_glasses_filtered
-    print("atts_imgs_list: ", att_imgs_list)
-
-    n_imgs = 15 
-    n_tforms = len(att_imgs_list)
-
-    for j in range(0,n_imgs):
-        # Iterating over the source images to be augmented
-        idx = np.random.randint(0, src_df.shape[0])
-        src_img_name = src_df.iloc[idx]['file_name']
-        for i in range(0,n_tforms):  
-            # Iterating over the attribute images which will be used for augmentation 
-            
-            # idy = np.random.randint(0, att_df.shape[0])
-            # Fixing the attribute image for current experiment
-
-            idy = att_imgs_list[i]
-            att_img_name = att_df.iloc[idy]['file_name']
-            create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name, att) 
-        print("transformed {} idx image".format(j))   
-"""
+    print("transformed {} idx image".format(j))  
 
 # This function will create a csv with the original file_name and its transformed version for attribute interpolation
 def create_csv_for_transformations(src_folder_path, save_file_name):
