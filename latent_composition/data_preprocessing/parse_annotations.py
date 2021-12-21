@@ -7,9 +7,7 @@ sapce exploration project. It first filters out a given number of positive and n
 After filtering out these example images it will create separate csv files for a single attribute and single label(positive/negative)
 There is addional functions implemented to copy only the set of images present in the csv files into separate folders for 
 fast and easy processing. Also, part-wise segmentation mask can also be copied into a separate folder from the image names from csv. 
-"""
-
-
+"""   
 
 
 
@@ -72,7 +70,7 @@ def filter_annotations(anno_file_path, df_columns, data_size):
 
 
 # This function will copy the dataset images present in the data_index_files (att's pos and neg image csvs), from the original dataset into a destination folder 
-def filter_image_data(data_index_file, src_img_path, dst_img_path):
+def filter_image_data(data_index_file, src_img_path, dst_img_path):   
     data_index = pd.read_csv(data_index_file)
     
     if (debug_flag):
@@ -164,18 +162,20 @@ def main():
     dst_folder_path = '../data_files/attribute_datasets/'
     # Total data size to be processed for filtering 
     data_size = 30*1000
-    att_list = ['Smiling', 'Mouth_Slightly_Open', 'No_Beard', 'Mustache', 'Narrow_Eyes', 'Wearing_Hat', 'Black_Hair', 'Blond_Hair',
-                'Brown_Hair', 'Gray_Hair', 'Straight_Hair', 'Wavy_Hair', 'Receding_Hairline']        
+    # att_list = ['Smiling', 'Mouth_Slightly_Open', 'No_Beard', 'Mustache', 'Narrow_Eyes', 'Wearing_Hat', 'Black_Hair', 'Blond_Hair',
+    #             'Brown_Hair', 'Gray_Hair', 'Straight_Hair', 'Wavy_Hair', 'Receding_Hairline']      
+    att_list = ['Bald']    
 
     # 1.1 Reading the annotation files and saving the annotation for desired attribute Eyeglasses, Wearing_Hat 
-    
+    """
     # Traversing over the attribute list and calling create_attribute_datasets for each of the attribute 
     for att in att_list: 
         create_attribute_datasets(anno_file_path, dst_folder_path, att, data_size)    
+    """
 
     # 1.2 
     # Using the above filtered data to copy the corresponding images and segmentation masks to a separate folder
-    """
+    
     root_path = '../CelebAMask-HQ/'  
     src_img_path = os.path.join(root_path, 'CelebA-HQ-img') 
     src_mask_path = os.path.join(root_path, 'CelebAMask-HQ-mask-anno/combined_annos_full') 
@@ -203,10 +203,10 @@ def main():
 
     for dif in data_index_files:
         # Copying the image files into a separate folder
-        # filter_image_data(dif, src_img_path, dst_img_path)         
+        filter_image_data(dif, src_img_path, dst_img_path)         
         # Copying the segmentation masks into a separate folder 
         filter_mask_data(dif, segmask_list, src_mask_path, dst_mask_path) 
-    """ 
+    
 
 if __name__ == "__main__":
     debug_flag = True

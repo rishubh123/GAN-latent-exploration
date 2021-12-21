@@ -200,16 +200,22 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
     cv2.imwrite(aug_image_save_path, modified_img) 
     
 # This function creates a global segmentation mask by combining all the segmentation mask corresponding to given attribute space
-def create_global_segm(data_root_dir, att_img_name, att):
+def create_global_segm(data_root_dir, att_img_name, att): 
     mask_path_prefix = str(format(int(att_img_name[:-4]), '05d')) # All the masks are saved in the format of 000xx.png. Initials of the image name 'xxxxx'
     
     # If we are working with any of these below attributes the regions are contained in only one single part segmentation mask
-    if (att == 'hat' or att == 'eye_g' or att == 'hair'):
-        mask_path = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + '_' + att + '.png') # Mask for the attribute image 
+    if (att == 'hat' or att == 'eye_g' or att == 'hair' or att == 'bangs' or att == 'bald'):
+        
+        mask_reg = att
+        # If any of the hair attribute is present we will use the hair mask path
+        if (att == 'bangs' or att == 'hair' or att == 'straight_hairs' or att == 'bald'):
+            mask_reg = 'hair'
+
+        mask_path = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + '_' + mask_reg + '.png') # Mask for the attribute image 
         
         if (not os.path.exists(mask_path)):
             print("mask path: ", mask_path)
-            print("Mask path does not exist, returning ... ") 
+            print("Mask path does not exist, returning ... ")  
             return False, None
 
         if (debug_flag):
@@ -278,7 +284,7 @@ def augment_images(data_root_dir, att, src_img_name, att_img_list):
 
 # This function provides the functionality to augment all the images upto some number by various transformations from the attribute types 
 def batch_augment_images():
-    np.random.seed(1)
+    # np.random.seed(1)
     data_root_dir = '../CelebAMask-HQ/data_filtered/renew'  
 
     # Transforming eyeglass attribute 
@@ -286,16 +292,39 @@ def batch_augment_images():
     att = 'eye_g'
     src_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_neg.csv')  
     eyeg_img_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_pos.csv')
-    att_img_list = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', '5220', '6114', '29778', '29995', 
-                    '168', '1153', '1183', '1158', '1802', '4967', '1856', '3078', '3089', '4015', '4389', '6513']
-                    
+    att_img_list = eyeg_img_df['file_name']
+    # att_img_list = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', '5220', '6114', '29778', '29995', 
+    #                 '168', '1153', '1183', '1158', '1802', '4967', '1856', '3078', '3089', '4015', '4389', '6513']
+    """ 
+
+    # Transforming hairs to bangs
+    
+    att = 'bangs'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Receding_Hairline_pos.csv')  
+    hair_img_df = pd.read_csv('../data_files/attribute_datasets/Bangs_pos.csv') 
+    print("Bang image df head:") 
+    print(hair_img_df.head())
+    att_img_list = hair_img_df['file_name']
+    print("att img list filtered: ", att_img_list)
+    
+
+
+    # Transforming hairs to bangs
     """
+    att = 'bald'  
+    src_df = pd.read_csv('../data_files/attribute_datasets/Bald_pos.csv')  
+    hair_img_df = pd.read_csv('../data_files/attribute_datasets/Black_Hair_pos.csv') 
+    print("Bang image df head:") 
+    print(hair_img_df.head())
+    att_img_list = hair_img_df['file_name']
+    """ 
+    
 
     # Transforming hair attribute 
     """
     att = 'hair'
-    src_df = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_neg.csv')  
-    hair_img_df = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_pos.csv') 
+    src_df = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_pos.csv')  
+    hair_img_df = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_neg.csv') 
     print("hair image df head:") 
     print(hair_img_df.head())
     att_img_list = list(hair_img_df[:25]['file_name'])  
@@ -306,8 +335,8 @@ def batch_augment_images():
     att = 'smile'
     src_df = pd.read_csv('../data_files/attribute_datasets/Smiling_neg.csv')  
     smile_img_df = pd.read_csv('../data_files/attribute_datasets/Smiling_pos.csv')
-    att_img_list = list(smile_img_df[:25]['file_name'])
-    """
+    att_img_list = smile_img_df['file_name']
+    """ 
 
     # Transforming eye attribute
     """
@@ -317,57 +346,33 @@ def batch_augment_images():
     att_img_list = list(eye_img_df[:25]['file_name']) 
     """ 
 
-    # Transforming hat attribute
+    
+    # Transforming hat attribute 
+    """
     att = 'hat'
     src_df = pd.read_csv('../data_files/attribute_datasets/Wearing_Hat_neg.csv')
     hat_img_df = pd.read_csv('../data_files/attribute_datasets/Wearing_Hat_pos.csv')
-    att_img_list = list(hat_img_df[:25]['file_name'])    
- 
-    n_imgs = 1 
+    att_img_list = hat_img_df['file_name'] 
+    """
+
+    n_tforms = 10
+    n_imgs = 10
     # Iterating over the source images to be augmented
     for j in range(0,n_imgs):
+        att_imgs = list(att_img_list.sample(n_tforms))
+
         idx = np.random.randint(0, src_df.shape[0])
-        src_img_name = src_df.iloc[idx]['file_name'] 
+        src_img_name = src_df.iloc[idx]['file_name']  
 
         # Calling the augmentation algorithm for the given source image and all the various types of given attribute iamge set. 
-        augment_images(data_root_dir, att, src_img_name, att_img_list)     
+        augment_images(data_root_dir, att, src_img_name, att_imgs)     
 
-    print("transformed {} idx image".format(j))  
-
-# This function will create a csv with the original file_name and its transformed version for attribute interpolation
-def create_csv_for_transformations(src_folder_path, save_file_name):
-    fnames = [fn for fn in os.listdir(src_folder_path)]
-
-    data_table = []
-    # Traversing the originals
-    for fn in fnames:
-        if (fn[-5:] != 'g.jpg'):
-            prefix_name = fn[:-4]
-            str_len = len(prefix_name)
-            tforms_names = []
-            for tn in fnames:
-                if (tn[:str_len] == prefix_name and tn[-5:] == 'g.jpg'):
-                    data_table.append([fn, tn])
-
-    
-    data_table = np.array(data_table)
-    print("generated data table: ", data_table)
-    df = pd.DataFrame(columns=['Original_img', 'Transformed_img'], data = data_table)
-
-    print("Saving the csv to location: ", save_file_name)
-    df.to_csv(save_file_name)
-    
+    print("transformed {} idx image".format(j))    
 
 def main():
     # 2.1
-    batch_augment_images()
+    batch_augment_images()  
 
-    # 2.2  
-    """
-    src_folder_path = '../CelebAMask-HQ/data_filtered/filtered_augmented_id_multiple'
-    save_file_name = '../data_files/' + 'multiple_sun_glasses_att_transform.csv'
-    create_csv_for_transformations(src_folder_path, save_file_name)
-    """
 
 if __name__ == "__main__":
     debug_flag = True

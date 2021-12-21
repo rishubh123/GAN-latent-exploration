@@ -56,6 +56,31 @@ def generate_csv_for_images(img_folder, dst_dir):
         print("Saving dataframe ... ", df_save_path)  
 
 
+# This function will create a csv with the original file_name and its transformed version for attribute interpolation
+def create_csv_for_transformations(src_folder_path, save_file_name, att_suffix): 
+    fnames = [fn for fn in os.listdir(src_folder_path)]
+
+    data_table = []
+    # Traversing the originals
+    for fn in fnames:
+        if (fn[-5:] != att_suffix):
+            prefix_name = fn[:-4]
+            str_len = len(prefix_name)
+            tforms_names = []
+            for tn in fnames:
+                if (tn[:str_len] == prefix_name and tn[-5:] == att_suffix):
+                    data_table.append([fn, tn])
+
+    
+    data_table = np.array(data_table)
+    print("generated data table: ", data_table)
+    df = pd.DataFrame(columns=['Original_img', 'Transformed_img'], data = data_table)
+
+    print("Saving the csv to location: ", save_file_name) 
+    df.to_csv(save_file_name) 
+
+
+
 
 if __name__ == "__main__":
     # 1.3
@@ -63,7 +88,14 @@ if __name__ == "__main__":
     # Generating csv for each of the image files and its various augmentations for hat and eyeglasses transformations 
     
     # This folder contains all the augmentations which are manually filtered for latent discovery 
-    aug_img_folder = '../CelebAMask-HQ/data_filtered/filter_augmentations_id/'   
-    dst_dir = '../data_files/'
-    generate_csv_for_images(aug_img_folder, dst_dir)    
+    # aug_img_folder = '../CelebAMask-HQ/data_filtered/filter_augmentations_id/'   
+    # dst_dir = '../data_files/'
+    # generate_csv_for_images(aug_img_folder, dst_dir)    
+
+    # 2.2
+    att = 'bald' 
+    att_suffix = 'd.jpg'
+    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att 
+    save_name = '../data_files/att_dirs_fs/att_dirs_fs_' + att + '.csv'
+    create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
     
