@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd 
 import os
 
+# Deprecated - not in use in current exprimentations 
 # This function will generate a csv by creating pairs of images with (augmented) and without attribute from one folder having all these image.
 def generate_csv_for_images(img_folder, dst_dir):
     # Here we will create a csv for each single image and all of its possible augmentations
@@ -80,22 +81,54 @@ def create_csv_for_transformations(src_folder_path, save_file_name, att_suffix):
     df.to_csv(save_file_name) 
 
 
+# This function takes the folder where all the attribute directions csv files are present and combines them into a single csv, which is easy for handelling and further processing. 
+def fuse_csv_files(src_path):
+    file_names = []
+
+    # destination path for the final csv having all the images and transformed images 
+    dst_file_path = os.path.join(src_path, 'att_dirs_fs_combined.csv')
+    
+    # Cleaning the earlier version of the combined csv file 
+    os.remove(dst_file_path)
+
+    for file_ in os.listdir(src_path):
+        fn = os.path.join(src_path, file_)
+
+        print("reading file:", fn)
+        df = pd.read_csv(fn) 
+        orig_names = list(df['Original_img'].to_numpy())
+        trans_names = list(df['Transformed_img'].to_numpy())
+
+        file_names += orig_names
+        file_names += trans_names
+
+    print("combined file names shape: ", len(file_names))
+    file_names_df = pd.DataFrame(columns=['img_name'], data= file_names)
+    file_names_df.to_csv(dst_file_path)
+
 
 
 if __name__ == "__main__":
-    # 1.3
-    # Once we have copied the images and the semgnetation masks into a separate folder we can then create pairs of images for further processing 
-    # Generating csv for each of the image files and its various augmentations for hat and eyeglasses transformations 
-    
+
+    # Deprecated | Given a list of original images and their corresponding transformed version, this function will create a csv having columns for the original and the transformed images  
     # This folder contains all the augmentations which are manually filtered for latent discovery 
     # aug_img_folder = '../CelebAMask-HQ/data_filtered/filter_augmentations_id/'   
     # dst_dir = '../data_files/'
     # generate_csv_for_images(aug_img_folder, dst_dir)    
 
+
     # 2.2
-    att = 'bald' 
-    att_suffix = 'd.jpg'
-    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att 
-    save_name = '../data_files/att_dirs_fs/att_dirs_fs_' + att + '.csv'
-    create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
+    # Once we have copied the images and the semgnetation masks into a separate folder we can then create pairs of images for further processing 
+    # Generating csv for each of the image files and its various augmentations for hat and eyeglasses transformations 
+    
+    # att = 'bald'   
+    # att_suffix = 'd.jpg'
+    # src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att 
+    # save_name = '../data_files/att_dirs_fs/att_dirs_fs_' + att + '.csv'
+    # create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
+
+
+    # 2.3 | Fusing the separate csv files to create a single  csv file
+    src_path = '../data_files/att_dirs_fs/'
+    fuse_csv_files(src_path)
     

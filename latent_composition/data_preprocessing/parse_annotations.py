@@ -6,7 +6,7 @@ Description: This file has all the utility functionality to read the CELEBA-HQ-M
 sapce exploration project. It first filters out a given number of positive and negative examples given the attribute type (eg. eyeglass, smile, wearining_hat)
 After filtering out these example images it will create separate csv files for a single attribute and single label(positive/negative)
 There is addional functions implemented to copy only the set of images present in the csv files into separate folders for 
-fast and easy processing. Also, part-wise segmentation mask can also be copied into a separate folder from the image names from csv. 
+fast and easy processing. Also, part segmentation mask can also be copied into a separate folder from the image names from csv. 
 """   
 
 
