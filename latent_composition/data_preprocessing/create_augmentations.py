@@ -17,7 +17,7 @@ Improvements:
 import numpy as np
 import cv2
 import pandas as pd
-import math
+import math  
 import os 
 
 global debug_flag
@@ -178,7 +178,12 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
 
     # Creating the augmentation by mapping the masked region from the negative and unmasked region from the positive attribute image.
     mask_img_norm = mask_img / 255.0
-    modified_img = mask_img_norm * att_img + (1-mask_img_norm) * src_img          
+    modified_img = mask_img_norm * att_img + (1-mask_img_norm) * src_img       
+
+    # Creating a flip augmentation if we are working with 'pose' attribute
+    if (att == 'pose'):
+        xc, yc = src_img.shape[0] / 2, src_img.shape[1] / 2
+        modified_img = cv2.flip(src_img,1)   
     
     # Dimensions for saving the image 
     dim = 256
@@ -257,6 +262,13 @@ def create_global_segm(data_root_dir, att_img_name, att):
         # combining the two mask images to create a single mask 
         mask_img = mask_img1 + mask_img2 + mask_img3
 
+    elif(att == 'pose'):
+        mask_reg = 'nose'
+        mask_path = os.path.join(data_root_dir, 'anno-mask', mask_path_prefix + '_' + mask_reg + '.png')
+
+        mask_img = np.zeros((512,512,3))
+        
+
     return True, mask_img
     
 
@@ -265,6 +277,7 @@ def create_global_segm(data_root_dir, att_img_name, att):
 def augment_images(data_root_dir, att, src_img_name, att_img_list):
     # The number of augmentations to be created for a given single image 
     n_tforms = len(att_img_list)  
+    n_tforms = 1 # Only creating a single flip copy of the original input image 
     
     for id in range(0, n_tforms): 
         att_img_name = att_img_list[id]
@@ -287,6 +300,13 @@ def batch_augment_images():
     # np.random.seed(1)
     data_root_dir = '../CelebAMask-HQ/data_filtered/renew'  
 
+    # Transforming the pose of the face, dataset can be any of attributes negative image set 
+    att = 'pose'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_neg.csv')
+    pose_img_df = src_df
+    att_img_list = pose_img_df['file_name']
+
+
     # Transforming eyeglass attribute 
     """
     att = 'eye_g'
@@ -298,7 +318,7 @@ def batch_augment_images():
     """ 
 
     # Transforming hairs to bangs
-    
+    """
     att = 'bangs'
     src_df = pd.read_csv('../data_files/attribute_datasets/Receding_Hairline_pos.csv')  
     hair_img_df = pd.read_csv('../data_files/attribute_datasets/Bangs_pos.csv') 
@@ -306,7 +326,7 @@ def batch_augment_images():
     print(hair_img_df.head())
     att_img_list = hair_img_df['file_name']
     print("att img list filtered: ", att_img_list)
-    
+    """
 
 
     # Transforming hairs to bangs
@@ -356,12 +376,12 @@ def batch_augment_images():
     """
 
     n_tforms = 10
-    n_imgs = 10
+    n_imgs = 60
     # Iterating over the source images to be augmented
     for j in range(0,n_imgs):
-        att_imgs = list(att_img_list.sample(n_tforms))
+        att_imgs = list(att_img_list.sample(n_tforms)) 
 
-        idx = np.random.randint(0, src_df.shape[0])
+        idx = np.random.randint(0, src_df.shape[0]) 
         src_img_name = src_df.iloc[idx]['file_name']  
 
         # Calling the augmentation algorithm for the given source image and all the various types of given attribute iamge set. 
