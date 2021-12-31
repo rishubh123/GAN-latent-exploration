@@ -1,5 +1,5 @@
 """
-Date: 29/12/2021
+Date: 29/12/2021 
 This module has all the required functions to initiate a pre-trained StyleGAN2 encoder-decoder model and perform inference from these models given any input image
 The primary utility of this file is to create a forward pass through the encode model for any given image extract the corresponding latent codes in W space of StyleGAN2,
 these latent codes are further save as a numpy matrix for later use. 
@@ -50,7 +50,7 @@ def extract_and_save_embeddings(nets, outdim, img_path_set, dst_path_set, embds_
             save_img = Image.fromarray(np.uint8(combined_display_image)).convert('RGB') 
             
             print("saving image: ", img_dst_path)
-            save_img.save(img_dst_path) 
+            save_img.save(img_dst_path)  
 
 
 # Extract embeddings for all the images in a folder, given a image set path, destination path for the inversion and the embeddings. 
@@ -77,11 +77,11 @@ if __name__ == "__main__":
   print("running main ...")
 
   # 1.1 Extracting the latent directions for all the image in a given folder 
-  print("extracting the latent directions ...")   
+  print("extracting the latent directions ...")  
   root_path = '../../CelebAMask-HQ/data_filtered/renew'
-  src_image_folder = os.path.join(root_path, 'augmentations/filtered_att_dirs_dataset/combined')
-  dst_inversion_folder = os.path.join(root_path, 'inversions')
-  dst_embds_folder = os.path.join(root_path, 'latents')
+  src_image_folder = os.path.join(root_path, 'augmentations/filtered_att_dirs_dataset/pose')
+  dst_inversion_folder = os.path.join(root_path, 'inversions') 
+  dst_embds_folder = os.path.join(root_path, 'latents') 
 
-  extract_latents(src_image_folder, dst_inversion_folder, dst_embds_folder) 
+  extract_latents(src_image_folder, dst_inversion_folder, dst_embds_folder)    
   

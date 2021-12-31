@@ -24,7 +24,7 @@ def normalize_dirs(latent_db):
         latent_dir = latent_db[idx,:,:,:] 
 
         magnitude = np.linalg.norm(latent_dir)
-        # print("Magnitute for the latent direction: ", magnitude)
+        print("Magnitute for the latent direction: ", magnitude)
         latent_norm = latent_dir / magnitude
         latent_db_norm.append(latent_norm)
 
@@ -166,10 +166,11 @@ def edit_image_set():
     print("Editing images:", img_names)
     print("n image: ", len(img_names))
 
-    atts_list = ['bang', 'eye_g', 'smile', 'bald', 'hat']      
-    latent_paths = ['latent_db_dir_id_11_bang.npy', 'latent_db_dir_id_17_eye_g.npy', 'latent_db_dir_id_18_smile.npy', 'latent_db_dir_id_20_bald.npy', 'latent_db_dir_id_20_hat.npy'] 
-    alphas = [1.0, 1.0, 0.5, 1.0, 1.0]
-    n_pairs = 1
+    atts_list = ['bang', 'eye_g', 'smile', 'bald', 'hat', 'pose']      
+    latent_paths = ['latent_db_dir_id_11_bang.npy', 'latent_db_dir_id_17_eye_g.npy', 'latent_db_dir_id_18_smile.npy', 'latent_db_dir_id_20_bald.npy', 
+                   'latent_db_dir_id_20_hat.npy', 'latent_db_dir_id_14_pose.npy'] 
+    alphas = [1.0, 1.0, 0.5, 1.0, 1.0, 1.0]
+    n_pairs = 1  
     image_res_paths = [os.path.join(img_res_path, att + '_pairs_' + str(n_pairs)) for att in atts_list] 
 
     # Creating folders for results for each attribute 
@@ -180,7 +181,7 @@ def edit_image_set():
     latent_paths = [os.path.join(dirs_files_root, lp) for lp in latent_paths]
 
     # Number of images to be processed 
-    n = 100
+    n = 10
     print("Editing {} images".format(n)) 
 
     # Saving the image edits for a set of image and all the set of attributes 
