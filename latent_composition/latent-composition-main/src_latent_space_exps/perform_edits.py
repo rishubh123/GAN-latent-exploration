@@ -19,7 +19,6 @@ def normalize_dirs(latent_db):
     latent_db_norm = []
 
     # Iterating over all the rows where the latent differences are stored
-    
     for idx in range(0, latent_db.shape[0]):        
         # print("latent db shape: ", latent_db.shape)
         latent_dir = latent_db[idx,:,:,:] 
@@ -32,16 +31,19 @@ def normalize_dirs(latent_db):
     return np.array(latent_db_norm)
 
 
-# This function performs image editing, given any image path and the attribute latent db and the number of pairs to use
-def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, alpha, z_optimize):
+# This function performs image editing, given any image path, the attribute latent db, number of pairs to use and the edit stregnth alpha 
+def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, alpha, n_pairs, z_optimize):
     outdim = 1024
     img_save_size = 256 # Image resolution at which the inversion and transformed image stack will be dumbed for visualization 
     fixed_scalar = 10 # Fixed scalar to map the unit normalized vectors back to a meaningful value 
     img_path = os.path.join(img_src_root, img_name)
 
     print("loading att latent dir file: ", latent_db_path)
-    latent_dir_db = np.load(latent_db_path)
-    latent_dir_db_norm = normalize_dirs(latent_dir_db) 
+    latent_dir_db = np.load(latent_db_path) 
+    latent_dir_db_norm = normalize_dirs(latent_dir_db)               
+
+    # Filtering out the first set of 5 latents for processing
+    latent_dir_db_norm = latent_dir_db_norm[:n_pairs, ...]
 
     # Average latent direction to be used for image editing 
     avg_latent_dir = latent_dir_db_norm.mean(axis=0)
@@ -71,7 +73,7 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
         out_zT_img = decode_forward(nets, outdim, zT)
     
     # Mapping the outpus generated to an image
-    out_img_hr = renormalize.as_image(out_zT_img[0]).resize((outdim, outdim), Image.LANCZOS)
+    out_img_hr = renormalize.as_image(out_zT_img[0]).resize((outdim, outdim), Image.LANCZOS) 
     save_out_z_img = renormalize.as_image(out_z_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
     save_out_zT_img = renormalize.as_image(out_zT_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
     
@@ -79,8 +81,8 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
     combined_display_image = np.hstack([save_src_img, save_out_z_img, save_out_zT_img])
     save_img = Image.fromarray(np.array(combined_display_image, np.uint8)).convert('RGB')
 
-    fn_combined = img_name + '_stack_' + att + '.jpg' 
-    fn_res = img_name + '_transformed_' + att + '.jpg'  
+    fn_combined = img_name[:-4] + '_stack_' + att + '_alpha_' + str(alpha) + '.jpg'  # removing .jpg
+    fn_res = img_name[:-4] + '_transformed_' + att + '_alpha_' + str(alpha) + '.jpg'  
 
     # Saving the transformed images and the stack of transformed and original image 
     fn_combined_save_path = os.path.join(img_res_path, fn_combined)
@@ -88,7 +90,7 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
 
     print("saving image stack at:", fn_combined_save_path)
     save_img.save(fn_combined_save_path)
-    out_img_hr.save(fn_res_save_path)
+    # out_img_hr.save(fn_res_save_path) 
   
 
 # Edit image function for generating results for a group of images into a single matrix form with varyieng the value of strength parameter alpha. 
@@ -97,7 +99,7 @@ def edit_image_group(nets, img_src_root, img_res_path, img_names, att, latent_db
     outdim = 1024
     img_save_size = 256 
 
-    print("loading att latent dir file: ", latent_db_path)
+    print("loading att latent dir file: ", latent_db_path)        
     latent_dir_db = np.load(latent_db_path)
     latent_dir_db_norm = normalize_dirs(latent_dir_db) 
 
@@ -156,15 +158,19 @@ def edit_image_group(nets, img_src_root, img_res_path, img_names, att, latent_db
 # Editing image set with the saved latents [Vanilla], applying transformation learnt by pairwise imgs and non-paired images 
 def edit_image_set(): 
     nets = load_nets()
-    img_path_root = '../../CelebAMask-HQ/data_filtered/test_imgs'
+    img_path_root = '../../CelebAMask-HQ/data_filtered/test500'
     img_res_path = '../../CelebAMask-HQ/data_filtered/renew/results/' 
     dirs_files_root = '../../data_files/estimated_dirs/'  
 
     img_names = [img for img in os.listdir(img_path_root)]
+    print("Editing images:", img_names)
+    print("n image: ", len(img_names))
 
-    atts_list = ['bang', 'eye_g', 'smile']   
-    latent_paths = ['latent_db_dir_id_11_bang.npy', 'latent_db_dir_id_17_eye_g.npy', 'latent_db_dir_id_18_smile.npy']
-    image_res_paths = [os.path.join(img_res_path, att) for att in atts_list] 
+    atts_list = ['bang', 'eye_g', 'smile', 'bald', 'hat']      
+    latent_paths = ['latent_db_dir_id_11_bang.npy', 'latent_db_dir_id_17_eye_g.npy', 'latent_db_dir_id_18_smile.npy', 'latent_db_dir_id_20_bald.npy', 'latent_db_dir_id_20_hat.npy'] 
+    alphas = [1.0, 1.0, 0.5, 1.0, 1.0]
+    n_pairs = 1
+    image_res_paths = [os.path.join(img_res_path, att + '_pairs_' + str(n_pairs)) for att in atts_list] 
 
     # Creating folders for results for each attribute 
     for im_res_pt in image_res_paths:
@@ -174,16 +180,17 @@ def edit_image_set():
     latent_paths = [os.path.join(dirs_files_root, lp) for lp in latent_paths]
 
     # Number of images to be processed 
-    n = 5
-    alpha = 2.0
+    n = 100
     print("Editing {} images".format(n)) 
 
     # Saving the image edits for a set of image and all the set of attributes 
     for i in range(0, n): 
-        for att in atts_list:
+        for j in range(0, len(atts_list)):  
+            att = atts_list[j]
             print("Editing Image for {} attribute".format(att))
-            img_res_path_att = os.path.join(img_res_path, att) 
-            edit_image(nets, img_path_root, img_res_path_att, img_names[i], att, latent_paths[i], alpha, z_optimize=False)  
+            img_res_path_att = image_res_paths[j] # os.path.join(img_res_path, att) 
+            # Taking the ith image and the jth latent attribute code for creating the edit image 
+            edit_image(nets, img_path_root, img_res_path_att, img_names[i], att, latent_paths[j], alphas[j], n_pairs, z_optimize=False)  
 
 
 if __name__ == "__main__":          

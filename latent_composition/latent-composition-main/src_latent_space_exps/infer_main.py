@@ -622,7 +622,7 @@ def edit_image_set_interpolate_atts():
     print("Editing {} images".format(n)) 
 
     # Images saving for multiple variations for a single image and creating a matrix collage out of it
-    img_transform_path = img_transform_path = '../CelebAMask-HQ/data_filtered/report_transform_imgs_test_att_interpolate_norm_basis/'  
+    img_transform_path = img_transform_path = '../CelebAMask-HQ/data_filtered/report_transform_imgs_test_att_interpolate_norm_basis/'    
 
     for i in range(4, 4+n): 
         # edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_path, latent_paths)  

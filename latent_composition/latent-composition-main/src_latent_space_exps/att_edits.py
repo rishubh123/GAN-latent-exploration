@@ -4,7 +4,13 @@ This module implements the functionality to edit style of any given for any attr
 We are looking at more exprimentations that can be used for estimating the attribute style manifold. 
 """
 
-
+import numpy as np
+import os
+from PIL import Image 
+import torch 
+from stylegan_utils import encode_forward, decode_forward, load_nets   
+from utils import renormalize
+ 
 
 # computing average direction based on the interpolation weights for latents 
 def compute_intepolate_dir(latents, weights):
@@ -203,7 +209,7 @@ def edit_image_set_interpolate_atts():
         edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_path, latent_paths)
 
 
-if __name__ == "__main__":  
+if __name__ == "__main__":   
   print("running main ...")
   print("editing image dirs ...")  
   # edit_image_set()

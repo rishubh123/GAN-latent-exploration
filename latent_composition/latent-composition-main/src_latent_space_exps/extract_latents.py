@@ -77,7 +77,7 @@ if __name__ == "__main__":
   print("running main ...")
 
   # 1.1 Extracting the latent directions for all the image in a given folder 
-  print("extracting the latent directions ...")  
+  print("extracting the latent directions ...")   
   root_path = '../../CelebAMask-HQ/data_filtered/renew'
   src_image_folder = os.path.join(root_path, 'augmentations/filtered_att_dirs_dataset/combined')
   dst_inversion_folder = os.path.join(root_path, 'inversions')

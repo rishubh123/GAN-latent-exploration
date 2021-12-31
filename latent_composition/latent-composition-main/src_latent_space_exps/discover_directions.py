@@ -179,7 +179,7 @@ def compute_direction_id_att(att, data_files_root, pairwise_file_path, embds_pat
     np.save(latent_save_name, latent_diffs)
 
 # This function finds the directions for all the augmented pairs created for each of the given attribute.  
-def compute_direction_id():
+def compute_direction_id(): 
     embds_path_root = '../../CelebAMask-HQ/data_filtered/renew/latents'
     att_list = ['bald', 'bang', 'eye_g', 'hat', 'smile']
     data_files_root = '../../data_files/estimated_dirs/'
@@ -194,7 +194,7 @@ def compute_direction_id():
 
 if __name__ == "__main__":  
   print("running main ...")   
-  print("computing all directions ...")    
+  print("computing all directions ...")     
   
   # Computing the directions for all the pairs formed by creating without identity pairs 
   # compute_directions_wo_id() 
