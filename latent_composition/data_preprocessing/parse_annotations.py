@@ -135,6 +135,27 @@ def clean_folder(root_dir):
         os.remove(os.path.join(root_dir, file_))
 
 
+# Creating a test set with 500 images
+def create_test_set(train_set_path, images_path, dst_images_path):  
+    copied_images = 0 
+    train_set = pd.read_csv(train_set_path)
+    print(train_set.head())
+
+    # Creating a list of all the original image names 
+    train_img_list = list(train_set['img_name'])
+    print("train image list: ", len(train_img_list))
+
+    for img in os.listdir(images_path):
+        if (not img in train_img_list):
+            fp = os.path.join(images_path, img)
+            shutil.copy(fp, dst_images_path)
+            copied_images += 1
+        if (copied_images > 500):
+            break
+
+    print("Copied {} images.", copied_images)
+
+
 # This function will process the combined annotation file for CELEBA-HQ-MASK dataset and for each attribute create two csvs one for positives and one for negatives
 # inputs:
 #    anno_file_path - The file path for the annotation file having all the attributes mentioned
@@ -175,7 +196,7 @@ def main():
 
     # 1.2 
     # Using the above filtered data to copy the corresponding images and segmentation masks to a separate folder
-    
+    """
     root_path = '../CelebAMask-HQ/'  
     src_img_path = os.path.join(root_path, 'CelebA-HQ-img') 
     src_mask_path = os.path.join(root_path, 'CelebAMask-HQ-mask-anno/combined_annos_full') 
@@ -206,7 +227,17 @@ def main():
         filter_image_data(dif, src_img_path, dst_img_path)         
         # Copying the segmentation masks into a separate folder 
         filter_mask_data(dif, segmask_list, src_mask_path, dst_mask_path) 
-    
+    """
+
+    # 1.3 Create test set by selecting images which are not in the training set for attribute estimation
+    train_set_path = '../data_files/att_dirs_dataset_fs/att_dirs_fs_combined.csv'
+    images_path = '../CelebAMask-HQ/CelebA-HQ-img/'
+    dst_images_path = '../CelebAMask-HQ/data_filtered/test500'
+    # Creating a folder for saving the test images 
+    if (not os.path.exists(dst_images_path)):
+        os.mkdir(dst_images_path)
+    create_test_set(train_set_path, images_path, dst_images_path)
+
 
 if __name__ == "__main__":
     debug_flag = True
