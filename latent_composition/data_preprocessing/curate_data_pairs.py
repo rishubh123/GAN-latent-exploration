@@ -12,12 +12,13 @@ and negative images for any attribute.
 import numpy as np
 import pandas as pd 
 import os
+import shutil 
 
-# Deprecated - not in use in current exprimentations 
+# Deprecated - not in use in current exprimentations   
 # This function will generate a csv by creating pairs of images with (augmented) and without attribute from one folder having all these image.
 def generate_csv_for_images(img_folder, dst_dir):
     # Here we will create a csv for each single image and all of its possible augmentations
-    img_list_hat = ['533.jpg', '1547.jpg', '18277.jpg', '21765.jpg']
+    img_list_hat = ['533.jpg', '1547.jpg', '18277.jpg', '21765.jpg']  
     img_list_eye_g = ['27995.jpg', '8167.jpg']
 
     # Creating files for augmented images with hat 
@@ -67,7 +68,7 @@ def create_csv_for_transformations(src_folder_path, save_file_name, att_suffix):
         if (fn[-5:] != att_suffix):
             prefix_name = fn[:-4]
             str_len = len(prefix_name)
-            tforms_names = []
+            tforms_names = [] 
             for tn in fnames:
                 if (tn[:str_len] == prefix_name and tn[-5:] == att_suffix):
                     data_table.append([fn, tn])
@@ -89,23 +90,34 @@ def fuse_csv_files(src_path):
     dst_file_path = os.path.join(src_path, 'att_dirs_fs_combined.csv')
     
     # Cleaning the earlier version of the combined csv file 
-    os.remove(dst_file_path)
+    if (os.path.exists(dst_file_path)):
+        os.remove(dst_file_path)
 
     for file_ in os.listdir(src_path):
         fn = os.path.join(src_path, file_)
+        if (fn[-3:] == 'csv'):
+            print("reading file:", fn)
+            df = pd.read_csv(fn) 
+            orig_names = list(df['Original_img'].to_numpy())
+            trans_names = list(df['Transformed_img'].to_numpy())
 
-        print("reading file:", fn)
-        df = pd.read_csv(fn) 
-        orig_names = list(df['Original_img'].to_numpy())
-        trans_names = list(df['Transformed_img'].to_numpy())
-
-        file_names += orig_names
-        file_names += trans_names
+            file_names += orig_names
+            file_names += trans_names
 
     print("combined file names shape: ", len(file_names))
     file_names_df = pd.DataFrame(columns=['img_name'], data= file_names)
     file_names_df.to_csv(dst_file_path)
 
+# This function will fuse all the images present in the src_folders and copy them into a single folder 
+def fuse_images(src_folders, combined_folder_path):
+    for src_folder in src_folders:
+        print("copyieng folder: ", src_folder)
+        for file_ in os.listdir(src_folder): 
+            fp = os.path.join(src_folder, file_)
+            dst_fname = os.path.join(combined_folder_path, file_)
+            
+            # Copyieng iamge files from the source to the dst_fname
+            shutil.copy(fp, dst_fname) 
 
 
 if __name__ == "__main__":
@@ -120,15 +132,25 @@ if __name__ == "__main__":
     # 2.2
     # Once we have copied the images and the semgnetation masks into a separate folder we can then create pairs of images for further processing 
     # Generating csv for each of the image files and its various augmentations for hat and eyeglasses transformations 
-    
-    # att = 'bald'   
-    # att_suffix = 'd.jpg'
-    # src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att 
-    # save_name = '../data_files/att_dirs_fs/att_dirs_fs_' + att + '.csv'
-    # create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
-
+    """
+    att = 'pose'   
+    att_suffix = 'e.jpg'
+    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att 
+    save_name = '../data_files/att_dirs_dataset_fs/att_dirs_fs_' + att + '.csv'
+    create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
+    """
 
     # 2.3 | Fusing the separate csv files to create a single  csv file
-    src_path = '../data_files/att_dirs_fs/'
-    fuse_csv_files(src_path)
+    src_path = '../data_files/att_dirs_dataset_fs/' 
+    fuse_csv_files(src_path)  
+
+    # 2.4 | Copyieng the files which are present in the separate folder into a single folder
+    """
+    src_folders = ['eye_g', 'bang', 'hat', 'smile', 'bald']
+    root_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/'
+    src_folders = [os.path.join(root_path, src) for src in src_folders]
+    dst_folder_path = root_path + '/combined'
     
+    fuse_images(src_folders, dst_folder_path)
+    print("files are copied into a single folder ... ") 
+    """
