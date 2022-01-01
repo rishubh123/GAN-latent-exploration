@@ -24,7 +24,7 @@ def normalize_dirs(latent_db):
         latent_dir = latent_db[idx,:,:,:] 
 
         magnitude = np.linalg.norm(latent_dir)
-        print("Magnitute for the latent direction: ", magnitude)
+        # print("Magnitute for the latent direction: ", magnitude)
         latent_norm = latent_dir / magnitude
         latent_db_norm.append(latent_norm)
 
@@ -32,7 +32,7 @@ def normalize_dirs(latent_db):
 
 
 # This function performs image editing, given any image path, the attribute latent db, number of pairs to use and the edit stregnth alpha 
-def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, alpha, n_pairs, z_optimize):
+def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, alpha, dir, n_pairs, z_optimize):
     outdim = 1024
     img_save_size = 256 # Image resolution at which the inversion and transformed image stack will be dumbed for visualization 
     fixed_scalar = 10 # Fixed scalar to map the unit normalized vectors back to a meaningful value 
@@ -67,7 +67,14 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
         z, save_src_img = encode_forward(nets, outdim, img_path)
 
         # Changing the z vector for edit based on the edit strength and the fixed scalar values 
-        zT = z + alpha*fixed_scalar*avg_latent_dir 
+        
+        # Transfromation of z for changing the latent in positive direction if dir is positive  
+        if (dir == 'pos'):
+            zT = z + alpha*fixed_scalar*avg_latent_dir 
+
+        # IF the direction is negative then we will subtract the direction from the current latent code for transformation 
+        if (dir == 'neg'):
+            zT = z - alpha*fixed_scalar*avg_latent_dir
         
         out_z_img = decode_forward(nets, outdim, z)
         out_zT_img = decode_forward(nets, outdim, zT)
@@ -81,8 +88,8 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
     combined_display_image = np.hstack([save_src_img, save_out_z_img, save_out_zT_img])
     save_img = Image.fromarray(np.array(combined_display_image, np.uint8)).convert('RGB')
 
-    fn_combined = img_name[:-4] + '_stack_' + att + '_alpha_' + str(alpha) + '.jpg'  # removing .jpg
-    fn_res = img_name[:-4] + '_transformed_' + att + '_alpha_' + str(alpha) + '.jpg'  
+    fn_combined = img_name[:-4] + '_stack_' + att + '_' + dir + '_alpha_' + str(alpha) + '.jpg'  # removing .jpg
+    fn_res = img_name[:-4] + '_transformed_' + att + '_' + dir + '_alpha_' + str(alpha) + '.jpg'  
 
     # Saving the transformed images and the stack of transformed and original image 
     fn_combined_save_path = os.path.join(img_res_path, fn_combined)
@@ -170,7 +177,7 @@ def edit_image_set():
     latent_paths = ['latent_db_dir_id_11_bang.npy', 'latent_db_dir_id_17_eye_g.npy', 'latent_db_dir_id_18_smile.npy', 'latent_db_dir_id_20_bald.npy', 
                    'latent_db_dir_id_20_hat.npy', 'latent_db_dir_id_14_pose.npy'] 
     alphas = [1.0, 1.0, 0.5, 1.0, 1.0, 1.0]
-    n_pairs = 1  
+    n_pairs = 5 
     image_res_paths = [os.path.join(img_res_path, att + '_pairs_' + str(n_pairs)) for att in atts_list] 
 
     # Creating folders for results for each attribute 
@@ -182,7 +189,7 @@ def edit_image_set():
 
     # Number of images to be processed 
     n = 10
-    print("Editing {} images".format(n)) 
+    print("Editing {} images".format(n))   
 
     # Saving the image edits for a set of image and all the set of attributes 
     for i in range(0, n): 
@@ -190,8 +197,8 @@ def edit_image_set():
             att = atts_list[j]
             print("Editing Image for {} attribute".format(att))
             img_res_path_att = image_res_paths[j] # os.path.join(img_res_path, att) 
-            # Taking the ith image and the jth latent attribute code for creating the edit image 
-            edit_image(nets, img_path_root, img_res_path_att, img_names[i], att, latent_paths[j], alphas[j], n_pairs, z_optimize=False)  
+            # Taking the ith image and the jth latent attribute code for creating the edit image  
+            edit_image(nets, img_path_root, img_res_path_att, img_names[i], att, latent_paths[j], alphas[j], 'pos', n_pairs, z_optimize=False)  
 
 
 if __name__ == "__main__":          
