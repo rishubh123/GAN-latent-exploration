@@ -100,7 +100,7 @@ def compute_direction_wo_id_att(att, data_files_root, embds_path_root, n):
     neg_files = pd.read_csv(neg_file_path)
 
     # n = len(pos_files['file_name'])
-    print("iterating over {} files to estimate the direction".format(n)) 
+    print("iterating over {} files to estimate the direction".format(n))  
 
     # Looping over i and j to get all the pair-wise differences between the latent code 
     latent_diffs = []
@@ -163,7 +163,7 @@ def compute_direction_id_att(att, data_files_root, pairwise_file_path, embds_pat
         aug_embd_path = os.path.join(embds_path_root, img_augname[:-4] + '.npy')
 
         orig_latent = np.load(orig_embd_path)
-        aug_latent = np.load(aug_embd_path)
+        aug_latent = np.load(aug_embd_path) 
         diff_latent = aug_latent - orig_latent
 
         latent_diffs.append(diff_latent)
@@ -177,6 +177,98 @@ def compute_direction_id_att(att, data_files_root, pairwise_file_path, embds_pat
     # Saving the difference of latent directions at the file location 
     print("saving latent for: ", att, " at: ", latent_save_name)
     np.save(latent_save_name, latent_diffs)
+
+
+# Computing the direction for each style for any given attribute. We will save all the directions for all the images and later
+# in the next module process them as required 
+def compute_direction_style_id_att(att, data_files_root, pairwise_df_path, embds_path_root):
+    print("pair-wise file path: ", pairwise_df_path)
+    pairwise_df = pd.read_csv(pairwise_df_path)    
+
+    # Attribute style dictionary which keeps stores all the edit directions for this particular attribute style 
+    att_style_dirs = {}
+    eye_g_origs = ['1299', '2599', '7962', '10427', '13684']
+    eye_g_orig_list = [ego + '.jpg' for ego in eye_g_origs] 
+
+    hair_origs = ['625', '751', '843', '1597', '3469', '5476', '6692', '14384', '16251', '20412', '25772', '28808']
+    hair_orig_list = [ho + '.jpg' for ho in hair_origs]
+
+    for idx in range(pairwise_df.shape[0]):
+        orig_name = pairwise_df.iloc[idx]['Original_img']
+        tformd_name = pairwise_df.iloc[idx]['Transformed_img']
+
+        orig_embd_path = os.path.join(embds_path_root, orig_name[:-4] + '.npy')
+        tformd_embd_path = os.path.join(embds_path_root, tformd_name[:-4] + '.npy')
+
+        orig_latent = np.load(orig_embd_path)
+        tformd_latent = np.load(tformd_embd_path) 
+
+        # Taking the difference between the transformed and the original image to obtain the latent direction 
+        dir = tformd_latent - orig_latent 
+        
+        # Original prefix len can be found by removing the count for '.jpg' 
+        orig_prefix_len = len(orig_name[:-4])
+        if (att == 'eye_g_style'):
+            att_prefix = tformd_name[orig_prefix_len+1:-10]
+        elif (att == 'hair_style'):
+            att_prefix = tformd_name[orig_prefix_len+1:-9]
+
+        # print("att_prefix: ", att_prefix)
+
+        # If there is no entry corresponding to this attribute currently in the dictionary 
+        if (not att_prefix in att_style_dirs.keys()):
+            att_style_dirs[att_prefix] = []
+
+        # Adding the direction to corresponding attribute style for processing 
+        # We will add the attribute direction if the original images is in our manually filtered list eye_g_orig_list
+        if (att == 'eye_g_style' and orig_name in eye_g_orig_list):
+            att_style_dirs[att_prefix].append(dir)
+        elif(att == 'hair_style' and orig_name in hair_orig_list):
+            att_style_dirs[att_prefix].append(dir)
+
+    att_style_dirs_filtered = {}
+    # Filtering out the directions which are not important for hair_style attribute | small code fix
+    if (att == 'hair_style'):
+        hair_style_list = ['2499', '4153', '6864', '10097', '10550', '26993', '29230', '26816', '20160', '23250']
+        for k, v in att_style_dirs.items():
+            if (k in hair_style_list):
+                att_style_dirs_filtered[k] = v
+
+    elif (att == 'eye_g_style'):
+        eye_g_style_list = ['2686', '4268', '15863', '19903', '20150', '20158', '22909', '26665', '28838']
+        for k, v in att_style_dirs.items():
+            if (k in eye_g_style_list):
+                att_style_dirs_filtered[k] = v 
+
+    # Let's check if the attributes have same number of images and have the same behavior as expected 
+    for k,v in att_style_dirs_filtered.items():
+        print("k: ", k, " len val: ", len(v))  
+
+    fn = 'latent_style_att_dir_db_' + att + '.csv'
+    latent_db_save_name = os.path.join(data_files_root, fn)
+    
+    print("Saving the latent direction database to: ", latent_db_save_name)
+    # Saving the pickle file for the transformation pairs 
+    f_handle = open(latent_db_save_name, "wb") 
+    pickle.dump(att_style_dirs_filtered, f_handle) 
+    f_handle.close() 
+
+
+# This function will find the direction for each type of attribute style given k-synthetic pairs of images 
+def compute_direction_style_id():
+    print("Computing the direction for attribute style editing ")
+    embds_path_root = '../../CelebAMask-HQ/data_filtered/renew/latents'
+    att_style_list = ['eye_g_style', 'hair_style']
+    data_files_root = '../../data_files/estimated_att_styles/'
+    pairwise_df_path_root = '../../data_files/att_style_dataset_fs/'
+    pairwise_paths = [os.path.join(pairwise_df_path_root, 'att_style_fs_' + att  + '.csv') for att in att_style_list]
+    print("pairwise paths: ", pairwise_paths)
+
+    # Itearting over all the style attribute for processing independently
+    for idx in range(0, 2):
+        # this will compute the direction for each of the attribute style given the set of images and saves them into a numpy matrix 
+        compute_direction_style_id_att(att_style_list[idx], data_files_root, pairwise_paths[idx], embds_path_root)
+
 
 # This function finds the directions for all the augmented pairs created for each of the given attribute.  
 def compute_direction_id():
@@ -201,4 +293,7 @@ if __name__ == "__main__":
   # compute_directions_wo_id() 
 
   # Computing the directions for the augmented pairs of positive and negative images 
-  compute_direction_id()
+  # compute_direction_id()
+
+  # Computing the directions for the attribute style pairs obtained by positive and negative images
+  compute_direction_style_id()
