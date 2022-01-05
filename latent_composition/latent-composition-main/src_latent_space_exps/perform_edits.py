@@ -10,7 +10,7 @@ import os
 import numpy as np
 import torch 
 from stylegan_utils import encode_forward, decode_forward, load_image_tensor, load_nets 
-from utils import renormalize # , inversions 
+from utils import renormalize, inversions 
 from PIL import Image 
 # sys.path.append('../')   
 
@@ -56,12 +56,16 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
 
         # Note: There is some code issue for inversion optimization, have to recheck and rectify
         # Performing the latent optimization to estimate the identity preserved direction 
-        checkpoint_dict, opt_losses = inversions.optimize_latent_for_id(nets, source_im, avg_latent_dir, att_stength)
+        # checkpoint_dict, opt_losses = inversions.optimize_latent_for_id(nets, source_im, avg_latent_dir, att_stength) 
+        checkpoint_dict, opt_losses = inversions.invert_lbfgs(nets, source_im, mask=None, lambda_f=0.25, lambda_l=0.5, num_steps=30, initial_latent=None)
         
         # Image to be saved in small size 
         save_src_img = renormalize.as_image(source_im[0]).resize((img_save_size, img_save_size), Image.LANCZOS) 
-        out_z_img = checkpoint_dict['invertim_x'].detach().clone()
-        out_zT_img = checkpoint_dict['current_x'].detach().clone() 
+        out_z_img = checkpoint_dict['current_x'].detach().clone() 
+        z = checkpoint_dict['current_z'].detach().clone()
+
+        zT = z + alpha*fixed_scalar*avg_latent_dir
+        out_zT_img = decode_forward(nets, outdim, zT)
 
     else:
         z, save_src_img = encode_forward(nets, outdim, img_path)
@@ -88,8 +92,8 @@ def edit_image(nets, img_src_root, img_res_path, img_name, att, latent_db_path, 
     combined_display_image = np.hstack([save_src_img, save_out_z_img, save_out_zT_img])
     save_img = Image.fromarray(np.array(combined_display_image, np.uint8)).convert('RGB')
 
-    fn_combined = img_name[:-4] + '_stack_' + att + '_' + dir + '_alpha_' + str(alpha) + '.jpg'  # removing .jpg
-    fn_res = img_name[:-4] + '_transformed_' + att + '_' + dir + '_alpha_' + str(alpha) + '.jpg'  
+    fn_combined = img_name[:-4] + '_stack_' + att + '_' + dir + '_alpha_' + str(alpha) + '_' + str(z_optimize) + '.jpg'  # removing .jpg
+    fn_res = img_name[:-4] + '_transformed_' + att + '_' + dir + '_alpha_' + str(alpha) + '_'+ str(z_optimize) + '.jpg'  
 
     # Saving the transformed images and the stack of transformed and original image 
     fn_combined_save_path = os.path.join(img_res_path, fn_combined)
@@ -125,9 +129,8 @@ def edit_image_group(nets, img_src_root, img_res_path, img_names, att, latent_db
         alphas = [0.6, 0.8, 1.0, 1.5] 
         image_column = []
 
-        # 
-        # if (z_optimize):
-        #     print("Not implemented")
+        if (z_optimize):
+            print("Not implemented") 
 
         # Inverted image by direct forward pass of the StyleGAN generator 
         out_z_img = decode_forward(nets, outdim, z)
@@ -198,7 +201,7 @@ def edit_image_set():
             print("Editing Image for {} attribute".format(att))
             img_res_path_att = image_res_paths[j] # os.path.join(img_res_path, att) 
             # Taking the ith image and the jth latent attribute code for creating the edit image  
-            edit_image(nets, img_path_root, img_res_path_att, img_names[i], att, latent_paths[j], alphas[j], 'pos', n_pairs, z_optimize=False)  
+            edit_image(nets, img_path_root, img_res_path_att, img_names[i], att, latent_paths[j], alphas[j], 'pos', n_pairs, z_optimize=True)  
 
 
 if __name__ == "__main__":          

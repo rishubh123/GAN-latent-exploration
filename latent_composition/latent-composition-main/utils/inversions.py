@@ -5,15 +5,16 @@ from torch.nn.functional import l1_loss, mse_loss
 from . import losses 
 from networks.psp import id_loss 
 import torch.nn as nn
+import sys
 
 masked_l1_loss = losses.Masked_L1_Loss()
 masked_lpips_loss = losses.Masked_LPIPS_Loss()
 
 def invert_lbfgs(nets, target, mask=None, lambda_f=0.25, lambda_l=0.5,
-                 num_steps=3000, initial_latent=None):  
+                 num_steps=3000, initial_latent=None):   
     from . import LBFGS
     G = nets.generator
-    E = nets.encoder
+    E = nets.encoder 
     G.eval()
     E.eval()
     G.cuda()
@@ -28,6 +29,8 @@ def invert_lbfgs(nets, target, mask=None, lambda_f=0.25, lambda_l=0.5,
     true_x = target.cuda()
     mask = mask.cuda()
     init_z = nets.encode(true_x, mask)
+    invertim = nets.decode(init_z) 
+    
     if initial_latent is not None:
         assert lambda_f == 0.0
         init_z = initial_latent
@@ -72,6 +75,7 @@ def invert_lbfgs(nets, target, mask=None, lambda_f=0.25, lambda_l=0.5,
     checkpoint_dict['loss'] = sum(all_loss.values()).item()
     checkpoint_dict['init_z'] = init_z
     checkpoint_dict['target_x'] = target_x
+    checkpoint_dict['invertim_x'] = invertim 
     checkpoint_dict['current_z'] = current_z
     checkpoint_dict['current_x'] = current_x
     return checkpoint_dict, losses

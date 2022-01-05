@@ -169,11 +169,12 @@ def edit_image_interpolate_atts_group(nets, img_path, img_idx, img_transform_pat
 # This function will create a gif for the attribute style editing operation
 def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path, n_pairs, n_key_frames):
     print("Creating gif .... ")
-    alpha = 0.3
+    alpha = 0.6
     n_atts = 10
     fixed_scalar = 20
     outdim = 1024
     img_save_size = 512
+    variation = 0.35
     latent_db_processed = parse_latent_db(latent_db_path, n_pairs)
 
     n_atts = len(latent_db_processed)
@@ -185,7 +186,7 @@ def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path,
     # Computing weights for the key-frames which will be interpolated later 
     key_weights = []
     for id in range(0, n_key_frames):
-        basis_coeffs = [round(np.random.uniform(-1.5, 1.5), 2) for i in range(0,n_atts-1)]
+        basis_coeffs = [round(np.random.uniform(-variation, variation), 2) for i in range(0,n_atts-1)]
         key_weights.append(basis_coeffs)
 
     # Creating a circular loop to make the visual look continuous 
@@ -199,7 +200,7 @@ def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path,
     for i in range(0, len(key_weights)-1):
         for t in range(0, int(1/quantize)):
             # Interpolating between the keyframe weights 
-            weights_array = (1-quantize*t) * np.array(key_weights[i+1]) + quantize*t * np.array(key_weights[i])
+            weights_array = (1-quantize*t) * np.array(key_weights[i]) + quantize*t * np.array(key_weights[i+1])
             weights = list(weights_array)
             avg_latent_dir = compute_interpolate_dir(basis_latent, weights)
 
@@ -214,8 +215,8 @@ def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path,
 
             accumulated_images.append(processed_img)
 
-    fn = img_idx[:-4] + '_transformed_gif_' + att + '_style_interpolation_' + str(alpha) + '.gif'
-    save_img_path = os.path.join(img_transform_path, fn)
+    fn = img_idx[:-4] + '_transformed_gif_' + att + '_style_interpolation_' + str(alpha) + '_' + str(variation) + '.gif'
+    save_img_path = os.path.join(img_transform_path, 'gifs', fn)
     # Saving the animation gif at the destination location 
     accumulated_images[0].save(save_img_path, save_all = True, append_images=accumulated_images)
     print("Saved the processed animation at: {}".format(save_img_path), "Enjoy!")
@@ -236,7 +237,7 @@ def edit_image_set_interpolate_atts():
     
     img_transform_paths = [os.path.join(img_transform_path_root, att) for att in att_list]
 
-    img_idxs = [img for img in os.listdir(img_path_root)]
+    img_idxs = [img for img in os.listdir(img_path_root) if(img[-4:] == '.jpg')]
     # Randomly shuffle image_idxs:
     import random
     img_idxs = random.sample(img_idxs, len(img_idxs))
@@ -256,7 +257,7 @@ def edit_image_set_interpolate_atts():
     img_transform_paths = [os.path.join(img_transform_path_root, att + '_' + str(n_pairs)) for att in att_list]
 
     for i in range(0, n):  
-        for att_j in range(1, 2): # Currently running just for the hair attribute 
+        for att_j in range(0, 1): # Currently running just for the hair attribute 
             # edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alpha)
             # edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alphas)
             create_gif(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_key_frames)
