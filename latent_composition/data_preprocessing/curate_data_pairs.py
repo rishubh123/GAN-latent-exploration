@@ -12,7 +12,8 @@ and negative images for any attribute.
 import numpy as np
 import pandas as pd 
 import os
-import shutil 
+import shutil  
+import pickle 
 
 # Deprecated - not in use in current exprimentations   
 # This function will generate a csv by creating pairs of images with (augmented) and without attribute from one folder having all these image.
@@ -81,6 +82,42 @@ def create_csv_for_transformations(src_folder_path, save_file_name, att_suffix):
     print("Saving the csv to location: ", save_file_name) 
     df.to_csv(save_file_name) 
 
+# Creating a dataframe for the original input image and the transformation of the image for attribute style editing experiments
+def create_df_for_att_style_transformations(src_folder_path, save_file_name, att_suffix):
+    file_names = [fn for fn in os.listdir(src_folder_path)]
+
+    data_dict = {}
+    # Traversing the originals
+    for fn in file_names:
+        if (fn[-4:] == '.jpg'):
+            if (fn[-5:] != att_suffix): # this condition is for the image being the original image 
+                prefix_name = fn[:-4]
+                str_len = len(prefix_name)
+                transform_imgs = []
+                for tn in file_names:
+                    if (tn[:str_len] == prefix_name and len(tn) > str_len + 4):   # this condition is satisfied only for transformed images 
+                        transform_imgs.append(tn)
+                data_dict[fn] = transform_imgs
+
+    # print("data dict: ", data_dict)
+    for k, v in data_dict.items():
+        print("k: ", k)
+
+    # Saving the pickle file for the transformation pairs 
+    f_handle = open(save_file_name, "wb") 
+    pickle.dump(data_dict, f_handle) 
+    f_handle.close()
+
+    # Loading the pickle file and verifyieng if it matches with the saved file 
+    load_file = open(save_file_name,'rb') 
+    loaded_data = pickle.load(load_file)
+    load_file.close() 
+
+    print("Matching the loaded file: ", load_file == data_dict)
+    print("loaded file:")
+    for k,v in loaded_data.items():
+        print("k:", k)
+        print("v:", v)
 
 # This function takes the folder where all the attribute directions csv files are present and combines them into a single csv, which is easy for handelling and further processing. 
 def fuse_csv_files(src_path):
@@ -140,9 +177,26 @@ if __name__ == "__main__":
     create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
     """
 
+    
+    att = 'hair_style'
+    att_suffix = 'r.jpg'
+    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_style_dataset/' + att
+    save_name = '../data_files/att_style_dataset_fs/att_style_fs_' + att + '.csv'
+    create_csv_for_transformations(src_folder_path, save_name, att_suffix)  
+    # create_df_for_att_style_transformations(src_folder_path, save_name, att_suffix) 
+
+    att = 'eye_g_style'
+    att_suffix = 'g.jpg'
+    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_style_dataset/' + att
+    save_name = '../data_files/att_style_dataset_fs/att_style_fs_' + att + '.csv'
+    create_csv_for_transformations(src_folder_path, save_name, att_suffix)   
+    # create_df_for_att_style_transformations(src_folder_path, save_name, att_suffix) 
+
     # 2.3 | Fusing the separate csv files to create a single  csv file
+    """
     src_path = '../data_files/att_dirs_dataset_fs/' 
     fuse_csv_files(src_path)  
+    """ 
 
     # 2.4 | Copyieng the files which are present in the separate folder into a single folder
     """

@@ -78,7 +78,7 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, att
 
     # To compute the dc shift, we will average out all the directions for each attribute style 
     dc_shift = np.array(latent_db_processed).mean(axis=0) 
-    print("dc shift vector shape: ", dc_shift.shape) 
+    # print("dc shift vector shape: ", dc_shift.shape) 
 
     for id in range(0, n_transforms): 
         basis_coeffs = [round(np.random.uniform(-0.50, 0.50),2) for i in range(0,n_atts-1)]
@@ -127,7 +127,7 @@ def edit_image_interpolate_atts_group(nets, img_path, img_idx, img_transform_pat
     
     # Dc shift to map the transforms back to the space of the attribute 
     dc_shift = np.array(latent_db_processed).mean(axis=0) 
-    print("dc shift vector shape: ", dc_shift.shape, dc_shift.min(), dc_shift.max())  
+    # print("dc shift vector shape: ", dc_shift.shape, dc_shift.min(), dc_shift.max())  
 
     image_matrix = []
     for id in range(0, n_transforms):
@@ -141,7 +141,7 @@ def edit_image_interpolate_atts_group(nets, img_path, img_idx, img_transform_pat
 
         # Iterating over all the values of alphas  
         for alpha in alphas:
-            basis_coeffs = [round(np.random.uniform(-1.0, 1.0),2) for i in range(0,n_atts-1)] 
+            basis_coeffs = [round(np.random.uniform(-1.5, 1.5),2) for i in range(0,n_atts-1)] 
             avg_latent_dir = compute_interpolate_dir(basis_latent, basis_coeffs)
 
             avg_latent_dir_shifted = avg_latent_dir + dc_shift
@@ -166,8 +166,59 @@ def edit_image_interpolate_atts_group(nets, img_path, img_idx, img_transform_pat
     print("saving image: ", save_img_path)
     save_img.save(save_img_path)  
 
+# This function will create a gif for the attribute style editing operation
+def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path, n_pairs, n_key_frames):
+    print("Creating gif .... ")
+    alpha = 0.3
+    n_atts = 10
+    fixed_scalar = 20
+    outdim = 1024
+    img_save_size = 512
+    latent_db_processed = parse_latent_db(latent_db_path, n_pairs)
 
+    n_atts = len(latent_db_processed)
+    print("number of attribute styles for input: ", n_atts)
 
+    basis_latent = create_basis_latents(latent_db_processed)
+    dc_shift = np.array(latent_db_processed).mean(axis=0)
+
+    # Computing weights for the key-frames which will be interpolated later 
+    key_weights = []
+    for id in range(0, n_key_frames):
+        basis_coeffs = [round(np.random.uniform(-1.5, 1.5), 2) for i in range(0,n_atts-1)]
+        key_weights.append(basis_coeffs)
+
+    # Creating a circular loop to make the visual look continuous 
+    key_weights.append(key_weights[0])
+
+    z, save_src_img = encode_forward(nets, outdim, img_path)
+    out_z_img = decode_forward(nets, outdim, z)
+
+    quantize = 0.1
+    accumulated_images = []
+    for i in range(0, len(key_weights)-1):
+        for t in range(0, int(1/quantize)):
+            # Interpolating between the keyframe weights 
+            weights_array = (1-quantize*t) * np.array(key_weights[i+1]) + quantize*t * np.array(key_weights[i])
+            weights = list(weights_array)
+            avg_latent_dir = compute_interpolate_dir(basis_latent, weights)
+
+            avg_latent_dir_shifted = avg_latent_dir + dc_shift
+            latent_dir_tensor = torch.from_numpy(avg_latent_dir_shifted).cuda()
+
+            zT = z + alpha * fixed_scalar * latent_dir_tensor
+
+            out_zT_img = decode_forward(nets, outdim, zT)
+            save_out_zT_img = renormalize.as_image(out_zT_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS)
+            processed_img = Image.fromarray(np.uint8(save_out_zT_img)).convert('RGB')
+
+            accumulated_images.append(processed_img)
+
+    fn = img_idx[:-4] + '_transformed_gif_' + att + '_style_interpolation_' + str(alpha) + '.gif'
+    save_img_path = os.path.join(img_transform_path, fn)
+    # Saving the animation gif at the destination location 
+    accumulated_images[0].save(save_img_path, save_all = True, append_images=accumulated_images)
+    print("Saved the processed animation at: {}".format(save_img_path), "Enjoy!")
 
 # This function has the main functionality to read and image and create attribute style transformations over it. 
 # Once we define the attributes to be considered and the paths for their latent codes then edit image can be called for
@@ -196,6 +247,7 @@ def edit_image_set_interpolate_atts():
     n = 25
     n_pairs = 5
     n_transforms = 16
+    n_key_frames = 10
     alpha = 0.6
     alphas = [0.2, 0.3, 0.5, 0.8]
     print("Editing {} images".format(n))
@@ -206,7 +258,8 @@ def edit_image_set_interpolate_atts():
     for i in range(0, n):  
         for att_j in range(1, 2): # Currently running just for the hair attribute 
             # edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alpha)
-            edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alphas)
+            # edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alphas)
+            create_gif(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_key_frames)
 
 if __name__ == "__main__":   
   print("running main ...")

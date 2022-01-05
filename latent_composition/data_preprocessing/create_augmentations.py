@@ -19,6 +19,7 @@ import cv2
 import pandas as pd
 import math  
 import os 
+import shutil 
 
 global debug_flag
 
@@ -153,7 +154,7 @@ def create_augmentation_with_alignment(data_root_dir, src_img_name, att_img_name
 # This function creates an augmentation of the negative image given an positive attribute image by using the segmentation mask and fusing these two images.
 # This function does not perform additional alignment of facial parts using landmarks points. However, eyes are already aligned in the dataset resuling in
 # few good augmentations wo having alignment step. 
-def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name, segm, att):  
+def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name, segm, att, change_clr=False):  
     src_img_path = os.path.join(data_root_dir, 'img', src_img_name)  # Source negative image path
     att_img_path = os.path.join(data_root_dir, 'img', att_img_name)  # Source positive image path from which the attribute will be extracted 
 
@@ -178,6 +179,14 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
 
     # Creating the augmentation by mapping the masked region from the negative and unmasked region from the positive attribute image.
     mask_img_norm = mask_img / 255.0
+    
+    # changing the color of the attribute being copied 
+    if (change_clr):
+        print("changing color for augmentation")  
+        att_img[:,:,1] += 50
+        att_img[:,:,0] += 100
+        att_img[:,:,2] += 100
+
     modified_img = mask_img_norm * att_img + (1-mask_img_norm) * src_img       
 
     # Creating a flip augmentation if we are working with 'pose' attribute
@@ -199,9 +208,9 @@ def create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name,
     cv2.imwrite('temp/sample_'+src_img_name[:-4] + att_img_name[:-4] + '_' + att + '.png', combined_imgs)
     
     # Saving the source image into the save folder for easy processing and saving the augmented image along with that 
-    print("Saving image to: ", src_img_save_path)
-    print("Saving aug image to: ", aug_image_save_path)
-    cv2.imwrite(src_img_save_path, src_img)
+    # print("Saving image to: ", src_img_save_path)
+    # print("Saving aug image to: ", aug_image_save_path)
+    cv2.imwrite(src_img_save_path, src_img) 
     cv2.imwrite(aug_image_save_path, modified_img) 
     
 # This function creates a global segmentation mask by combining all the segmentation mask corresponding to given attribute space
@@ -277,7 +286,7 @@ def create_global_segm(data_root_dir, att_img_name, att):
 def augment_images(data_root_dir, att, src_img_name, att_img_list):
     # The number of augmentations to be created for a given single image 
     n_tforms = len(att_img_list)  
-    n_tforms = 1 # Only creating a single flip copy of the original input image 
+    # n_tforms = 1 # Only creating a single flip copy of the original input image for pose attribute 
     
     for id in range(0, n_tforms): 
         att_img_name = att_img_list[id]
@@ -292,8 +301,33 @@ def augment_images(data_root_dir, att, src_img_name, att_img_list):
         # cv2.waitKey(2000)      
 
         # Now we can create augmentations for the input image and given attribute image with its combined segmentation mask 
-        create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name, segm, att)
+        create_augmentations_wo_alignment(data_root_dir, src_img_name, att_img_name, segm, att, change_clr=False) 
 
+
+# Utils function to select some augmentations which are manually selected
+def select_samples(src_folder, dst_folder):
+    # Eyeglass attribute: 
+    # img_list = ['10427', '7962', '21755', '12331', '1299', '13684', '12430', '7091']
+    # att_list = ['2686', '20158','4268','22909','15863','26665','19903','28838','20150','29908']
+
+    # Style Hair attribute:
+    img_list = ['1597', '14834', '28808', '20412', '843', '8260', '625', '25772', '1761', '5476', '6692', '751', '3469']
+    att_list = ['12', '1597', '2499', '4153', '6864', '9590', '10097', '10550', '26993', '29230', '26816', '20160', '23250'] 
+
+    for file_ in os.listdir(src_folder):
+        for img_nm in img_list:
+            # Copyieng the original image 
+            if (img_nm + '.jpg' == file_):
+                fp = os.path.join(src_folder, file_)
+                shutil.copy(fp, dst_folder)
+
+            # Copyieng selected image transformation into a separate folder  
+            for att_nm in att_list:
+                if (img_nm in file_ and att_nm in file_):
+                    fp = os.path.join(src_folder, file_)
+                    shutil.copy(fp, dst_folder)
+            
+    print("images copied. ")
 
 # This function provides the functionality to augment all the images upto some number by various transformations from the attribute types 
 def batch_augment_images():
@@ -301,21 +335,35 @@ def batch_augment_images():
     data_root_dir = '../CelebAMask-HQ/data_filtered/renew'  
 
     # Transforming the pose of the face, dataset can be any of attributes negative image set 
+    """
     att = 'pose'
     src_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_neg.csv')
     pose_img_df = src_df
     att_img_list = pose_img_df['file_name']
-
+    """
 
     # Transforming eyeglass attribute 
-    """
     att = 'eye_g'
     src_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_neg.csv')  
     eyeg_img_df = pd.read_csv('../data_files/attribute_datasets/Eyeglasses_pos.csv')
     att_img_list = eyeg_img_df['file_name']
     # att_img_list = ['888', '1565', '1598', '1817', '2686', '3824', '4081', '4289', '5220', '6114', '29778', '29995', 
     #                 '168', '1153', '1183', '1158', '1802', '4967', '1856', '3078', '3089', '4015', '4389', '6513']
-    """ 
+    
+
+
+    # Transforming hair attribute, this is for syle editing of hairs hence we we will concatenate
+    # positives from all the hair attribute database files 
+    att = 'hair'
+    src_df = pd.read_csv('../data_files/attribute_datasets/Receding_Hairline_pos.csv')
+    hair_img_df1 = pd.read_csv('../data_files/attribute_datasets/Bangs_pos.csv')
+    # hair_img_df2 = pd.read_csv('../data_files/attribute_datasets/Black_Hair_pos.csv')
+    # hair_img_df3 = pd.read_csv('../data_files/attribute_datasets/Brown_Hair_pos.csv')
+    # hair_img_df4 = pd.read_csv('../data_files/attribute_datasets/Gray_Hair_pos.csv')
+    hair_img_df5 = pd.read_csv('../data_files/attribute_datasets/Straight_Hair_pos.csv')
+    hair_img_df6 = pd.read_csv('../data_files/attribute_datasets/Wavy_Hair_pos.csv')
+    hair_img_df = pd.concat([hair_img_df1, hair_img_df5, hair_img_df6]) 
+    att_img_list = hair_img_df['file_name']
 
     # Transforming hairs to bangs
     """
@@ -373,14 +421,16 @@ def batch_augment_images():
     src_df = pd.read_csv('../data_files/attribute_datasets/Wearing_Hat_neg.csv')
     hat_img_df = pd.read_csv('../data_files/attribute_datasets/Wearing_Hat_pos.csv')
     att_img_list = hat_img_df['file_name'] 
-    """
+    """ 
 
-    n_tforms = 10
-    n_imgs = 60
+    n_tforms = 25
+    n_imgs = 100
+
+    # Sampling the attribute images first and keeping it fixed for all the varations 
+    att_imgs = list(att_img_list.sample(n_tforms))  
     # Iterating over the source images to be augmented
     for j in range(0,n_imgs):
-        att_imgs = list(att_img_list.sample(n_tforms)) 
-
+        print("Transforming image: {}".format(j))
         idx = np.random.randint(0, src_df.shape[0]) 
         src_img_name = src_df.iloc[idx]['file_name']  
 
@@ -391,7 +441,12 @@ def batch_augment_images():
 
 def main():
     # 2.1
-    batch_augment_images()  
+    # batch_augment_images()    
+
+    # 2.2
+    src_folder = '../CelebAMask-HQ/data_filtered/renew/augmentations/hair' 
+    dst_folder = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_style_dataset/hair_style'
+    select_samples(src_folder, dst_folder) 
 
 
 if __name__ == "__main__":
