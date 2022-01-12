@@ -168,7 +168,7 @@ def compute_single_direction_pairwise(att, data_files_root, embds_path_root):
 # 1-n config. This function computes pairwise direction for a single source image and its multiple transformations 
 def compute_separate_single_direction_pairwise(pairwise_file_path, data_files_root, embds_path_root):
     print("pair-wise file path: ", pairwise_file_path)
-    files_ = pd.read_csv(pairwise_file_path)
+    files_ = pd.read_csv(pairwise_file_path)  
     print("files head of data:", files_.head())
     latent_diffs = []
     num_pairs = min(5, files_.shape[0])
@@ -195,11 +195,11 @@ def compute_separate_single_direction_pairwise(pairwise_file_path, data_files_ro
     fn = 'all_latent_dirs_pairwise' + str(num_pairs) + '_' + src_img_name + '.pkl' 
     latent_save_name = os.path.join(data_files_root, fn)
 
-    print("saving latent for: ", pairwise_file_path, " at: ", latent_save_name)   
+    print("saving latent for: ", pairwise_file_path, " at: ", latent_save_name)    
     
     # Store data (serialize)
     with open(latent_save_name, 'wb') as handle:
-        pickle.dump(latent_dirs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(latent_dirs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL) 
 
 
     # Load data (deserialize)
@@ -378,7 +378,7 @@ def edit_image_identity(nets, img_path, img_idx, img_transform_path, atts_list, 
         latent_dir_tensor = torch.from_numpy(latent_dir).cuda()
         att_strength = 40.0
 
-        source_im = load_image_tensor(img_path, outdim) 
+        source_im = load_image_tensor(img_path, outdim)  
 
         # Performing the latent optimization to estimate the identity preserved direction 
         checkpoint_dict, opt_losses = inversions.optimize_latent_for_id(nets, source_im, latent_dir_tensor, att_strength)
