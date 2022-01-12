@@ -272,15 +272,16 @@ def compute_direction_style_id():
 
 # This function finds the directions for all the augmented pairs created for each of the given attribute.  
 def compute_direction_id():
-    embds_path_root = '../../CelebAMask-HQ/data_filtered/renew/latents'
+    embds_path_root = '../../CelebAMask-HQ/data_filtered/renew/latents'  
     # att_list = ['bald', 'bang', 'eye_g', 'hat', 'smile']
-    att_list = ['pose']
+    # att_list = ['pose']
+    att_list = ['age_60_', 'age_70_', 'age_80_', 'beard']
     data_files_root = '../../data_files/estimated_dirs/'
     pairwise_path_root = '../../data_files/att_dirs_dataset_fs/'
     pairwise_paths = [os.path.join(pairwise_path_root, 'att_dirs_fs_' + att) + '.csv' for att in att_list]
 
     # Iterating over all the attributes for processing them independently 
-    for idx in range(0, 1):
+    for idx in range(0, 4):
         # Selecting the idx^th attribute and corresponding csv file path 
         compute_direction_id_att(att_list[idx], data_files_root, pairwise_paths[idx], embds_path_root)    
 
@@ -293,7 +294,7 @@ if __name__ == "__main__":
   # compute_directions_wo_id() 
 
   # Computing the directions for the augmented pairs of positive and negative images 
-  # compute_direction_id()
+  compute_direction_id()
 
   # Computing the directions for the attribute style pairs obtained by positive and negative images
-  compute_direction_style_id()
+  # compute_direction_style_id()

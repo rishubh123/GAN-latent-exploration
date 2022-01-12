@@ -178,6 +178,7 @@ if __name__ == "__main__":
     """
 
     
+    """
     att = 'hair_style'
     att_suffix = 'r.jpg'
     src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_style_dataset/' + att
@@ -191,6 +192,22 @@ if __name__ == "__main__":
     save_name = '../data_files/att_style_dataset_fs/att_style_fs_' + att + '.csv'
     create_csv_for_transformations(src_folder_path, save_name, att_suffix)   
     # create_df_for_att_style_transformations(src_folder_path, save_name, att_suffix) 
+    """
+
+    """
+    att = 'age'
+    att_suffix = '80.jpg'
+    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att
+    save_name = '../data_files/att_dirs_dataset_fs/att_dirs_fs_' + att + '_80_' + '.csv'
+    create_csv_for_transformations(src_folder_path, save_name, att_suffix) 
+    """ 
+
+    att = 'beard'
+    att_suffix = 'd.jpg'
+    src_folder_path = '../CelebAMask-HQ/data_filtered/renew/augmentations/filtered_att_dirs_dataset/' + att
+    save_name = '../data_files/att_dirs_dataset_fs/att_style_fs_' + att + '.csv'
+    create_csv_for_transformations(src_folder_path, save_name, att_suffix) 
+
 
     # 2.3 | Fusing the separate csv files to create a single  csv file
     """
@@ -206,5 +223,5 @@ if __name__ == "__main__":
     dst_folder_path = root_path + '/combined'
     
     fuse_images(src_folders, dst_folder_path)
-    print("files are copied into a single folder ... ") 
+    print("files are copied into a single folder ... ")   
     """
