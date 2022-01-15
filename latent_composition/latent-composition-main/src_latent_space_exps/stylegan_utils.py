@@ -28,8 +28,7 @@ def load_image_tensor(img_path, outdim):
     return source_im
 
 # Forward pass through the encode model to obtain latent codes. This is a direct encoding without the latent optimization, hence it is fast 
-def encode_forward(nets, outdim, img_path): 
-    img_save_size = 256
+def encode_forward(nets, outdim, img_save_size, img_path): 
     source_im = load_image_tensor(img_path, outdim)
 
     # Image to be saved in small size 
@@ -60,7 +59,9 @@ def load_nets():
     # nets = networks.define_nets('stylegan', 'ffhq', ckpt_path='pretrained_models/sgan_encoders/ffhq_reals_RGBM/netE_epoch_best.pth')
     
     # stylegan trained on gsamples + identity loss
-    nets = networks.define_nets('stylegan', 'ffhq')
+    # nets = networks.define_nets('stylegan', 'ffhq')    | Commented for now as we have already donwloaded the weights 
+    nets = networks.define_nets('stylegan', 'ffhq', ckpt_path = '../pretrained_models/sgan_encoders_ffhq_RGBM_model_final.pth')    
+    # http://latent-composition.csail.mit.edu/pretrained_models/sgan_encoders_ffhq_RGBM_model_final.pth
     return nets 
 
 

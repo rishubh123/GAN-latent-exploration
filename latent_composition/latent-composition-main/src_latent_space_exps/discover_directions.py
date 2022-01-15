@@ -271,9 +271,9 @@ def compute_direction_style_id():
 
 
 # This function finds the directions for all the augmented pairs created for each of the given attribute.  
-def compute_direction_id():
+def compute_direction_id():  
     embds_path_root = '../../CelebAMask-HQ/data_filtered/renew/latents'  
-    # att_list = ['bald', 'bang', 'eye_g', 'hat', 'smile']
+    # att_list = ['bald', 'bang', 'eye_g', 'hat', 'smile'] 
     # att_list = ['pose']
     att_list = ['age_60_', 'age_70_', 'age_80_', 'beard']
     data_files_root = '../../data_files/estimated_dirs/'

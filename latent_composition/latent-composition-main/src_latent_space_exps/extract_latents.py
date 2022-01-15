@@ -13,7 +13,7 @@ from PIL import Image
 import torch 
 import numpy as np 
 from torchvision import transforms 
-from stylegan_utils import load_image_tensor, encode_forward, decode_forward, load_nets
+from stylegan_utils import load_image_tensor, load_nets
 from utils import show, renormalize, pbar   
 
 

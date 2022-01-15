@@ -6,7 +6,7 @@ import shutil
 
 
 # Function to read annotation file line by line and extract relevent annotations 
-def read_annotations(anno_file_path, data_size):
+def read_annotations(anno_file_path, data_size): 
     anno_file = open(anno_file_path, 'r') 
 
     n = anno_file.readline()

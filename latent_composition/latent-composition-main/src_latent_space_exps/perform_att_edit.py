@@ -22,12 +22,38 @@ def compute_interpolate_dir(latents, weights):
 
     return store
 
-# This function will parse the saved pairwise latent direction from a dictionary file and processed them. In the
-# processing first all the pairwise latent directions for any attribute style is normalized to unit length and then
-# averaged to form a set of averaged out latent directions for each style for the given attribute. 
+# This function will fuse the latent directions by different fusion type
+def estimate_dominant_dir(latents, fusion):  
+    print("Computing SVD to find the dominant direction.")
+    if (fusion == 'SVD'):
+        data_matrix = []
+        # latents: Shape = n_pairs x 18 x 512 
+        for i in range(0, latents.shape[0]): 
+            latent_flatten = latents[i].flatten() # flatten into a single array of 18 x 512 size
+            data_matrix.append(latent_flatten) 
+
+        # Creating a single matrix for performing SVD over normalizing factor 
+        data_matrix = np.array(data_matrix) 
+        
+        u, s, vh = np.linalg.svd(data_matrix, full_matrices=False)  
+        # print("eigen values: ", s)
+        dominant_dir = vh[0,:].reshape(18, 512)
+
+        magnitude = np.linalg.norm(dominant_dir) 
+        dominant_dir = -dominant_dir / magnitude   
+ 
+        return dominant_dir  
+
+
+# This function performs normalized the latent code differences to unit lengths 
+
+
+# This function will parse the saved pairwise latent direction from a dictionary file and processed them. 
+# In the processing first all the pairwise latent directions for any attribute style is normalized to unit length and then
+# averaged/SVD is compute to find the dominant variation direction of the latent directions for each style for the given attribute. 
 def parse_latent_db(latent_db_path, n_pairs): 
     # Loading the pickle file and verifyieng if it matches with the saved file 
-    print("Latent db reading from path: ", latent_db_path)
+    print("Latent db reading from path: ", latent_db_path) 
     load_file = open(latent_db_path,'rb') 
     latent_db = pickle.load(load_file)
     load_file.close()
@@ -37,7 +63,7 @@ def parse_latent_db(latent_db_path, n_pairs):
     for k, all_dirs in latent_db.items():
         # Normalizing all the pairwise distances to have unit length before averaging
         # print("Key for att: ", k, " length of transforms: ", len(all_dirs))
-        normed_latents = []
+        normed_latents = [] 
         for i in range(len(all_dirs)):
             lat_leng = np.linalg.norm(all_dirs[i]) 
             lat = all_dirs[i]/lat_leng
@@ -47,7 +73,12 @@ def parse_latent_db(latent_db_path, n_pairs):
         # Taking only the first n_imgs for taking the average to estimate the attribute directions 
         normed_latents = normed_latents[:n_pairs]
         normed_latents = np.array(normed_latents)
-        avg_dir = np.mean(normed_latents, axis=0)
+        # avg_dir = np.mean(normed_latents, axis=0)
+
+        # Instead of taking averaging we are performing SVD to find the dominant variation of the direction 
+        avg_dir = estimate_dominant_dir(normed_latents, 'SVD')
+
+        # print("SVD dominant direction shape: ", avg_dir.shape)
 
         # print("without averaging and after normlization shape: ", normed_latents.shape)
         # print("after averaging, shape of dir:", avg_dir.shape)
@@ -62,23 +93,71 @@ def create_basis_latents(latent_db_processed):
     basis_latents = [latent_db_processed[0] - latent_db_processed[i] for i in range(1, len(latent_db_processed))]
     return basis_latents 
 
+# This function finds the latent direction that joins the normal_direction to every other direction and return a set of basis vectors. 
+def estimate_deviation_from_normal(scaled_latents, normal_direction):
+    basis_latents = [scl - normal_direction for scl in scaled_latents]
+    return basis_latents 
+
+# Check for planarity of the vectors forming the basis of the space of attributes 
+def check_planarity(basis_vectors, normal_vector): 
+    dots = []
+    for i in range(0, len(basis_vectors)):
+        dot_p = np.dot(basis_vectors[i].flatten(), normal_vector.flatten())
+        dots.append(dot_p)
+
+    print("Checking the dot products here: ", dots ) 
+
+# This function will create a basis vector in a more meaningful way by first projecting all the latents onto the plane perpendicular to the SVD direction
+# And then estimating the basis directions by taking difference for each of the direction from the SVD direction 
+def create_basis_latents_advanced(latent_db_processed):  
+    print("Creating basis by the defined formulation ... ")
+    print("processed latent db shape: ", len(latent_db_processed)) 
+
+    normal_direction = estimate_dominant_dir(np.array(latent_db_processed), 'SVD') 
+    print("normal direction shape: ", normal_direction.shape)
+    normal_flatten = normal_direction.flatten() 
+
+    # This scalling factor will make the vectors lie in a plane formed by tangent of the unit sphere. 
+    scaled_latents = []
+
+    # latents: Shape = n_pairs x 18 x 512 
+    for i in range(0, len(latent_db_processed)): 
+        curr_latent = latent_db_processed[i]
+        latent_flatten = curr_latent.flatten() # flatten into a single array of 18 x 512 size
+        cos_theta = np.dot(normal_flatten, latent_flatten) # As both of them are unit vectors 
+        # |v_avg| /|p1| = cos_theta  => 1 / |p1| = cos_theta as |v_avg| = 1
+        scale_factor = 1 / cos_theta
+        print("scale factor: ", scale_factor)        
+        latent_scaled = curr_latent * scale_factor
+        scaled_latents.append(latent_scaled)
+
+    basis_latents = estimate_deviation_from_normal(scaled_latents, normal_direction) 
+    print("Length of basis latents: ", len(basis_latents))
+
+    return basis_latents, normal_direction  
+
 # Editing the image given the image path, the name of attribute to be edited and the latent db file path and number of images used for averaging. 
 def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, att, latent_db_path, n_pairs, n_transforms, alpha): 
     n_atts = 10
     fixed_scalar = 20
     outdim = 1024
     img_save_size = 256 
-    latent_db_processed = parse_latent_db(latent_db_path, n_pairs) 
+    latent_db_processed = parse_latent_db(latent_db_path, n_pairs)  
 
     n_atts = len(latent_db_processed)
     print("number of attribute styles in input: ", n_atts)
 
     # To obtain the basis latent vectors of the attribute style space, given the set of processed latent codes normalized followed by averaged. 
-    basis_latents = create_basis_latents(latent_db_processed)
-
+    # basis_latents_avg = create_basis_latents(latent_db_processed)
     # To compute the dc shift, we will average out all the directions for each attribute style 
-    dc_shift = np.array(latent_db_processed).mean(axis=0) 
+    # dc_shift = np.array(latent_db_processed).mean(axis=0) 
     # print("dc shift vector shape: ", dc_shift.shape) 
+
+    # Both the basis vectors and the dc shift will come from the create basis function 
+    basis_latents, dc_shift = create_basis_latents_advanced(latent_db_processed)  
+
+    # checking whether the basis are in the plane or not 
+    check_planarity(basis_latents, dc_shift) 
 
     for id in range(0, n_transforms): 
         basis_coeffs = [round(np.random.uniform(-0.50, 0.50),2) for i in range(0,n_atts-1)]
@@ -87,7 +166,7 @@ def edit_image_interpolate_atts(nets, img_path, img_idx, img_transform_path, att
         avg_latent_dir_shifted = avg_latent_dir + dc_shift
         latent_dir_tensor = torch.from_numpy(avg_latent_dir_shifted).cuda()
 
-        z, save_src_img = encode_forward(nets, outdim, img_path)
+        z, save_src_img = encode_forward(nets, outdim, img_save_size, img_path)
         zT = z + alpha*fixed_scalar*latent_dir_tensor 
 
         out_z_img = decode_forward(nets, outdim, z)
@@ -117,22 +196,28 @@ def edit_image_interpolate_atts_group(nets, img_path, img_idx, img_transform_pat
     fixed_scalar = 20
     outdim = 1024
     img_save_size = 256 
-    latent_db_processed = parse_latent_db(latent_db_path, n_pairs)           
+    latent_db_processed = parse_latent_db(latent_db_path, n_pairs)         
 
     n_atts = len(latent_db_processed)
     print("number of attribute styles in input: ", n_atts)
 
-    # Call to obatin the basis latent vectors which are created by taking difference between specific attribute styles 
-    basis_latent = create_basis_latents(latent_db_processed)
-    
-    # Dc shift to map the transforms back to the space of the attribute 
-    dc_shift = np.array(latent_db_processed).mean(axis=0) 
+    # To obtain the basis latent vectors of the attribute style space, given the set of processed latent codes normalized followed by averaged. 
+    # basis_latents_avg = create_basis_latents(latent_db_processed)
+    # To compute the dc shift, we will average out all the directions for each attribute style 
+    # dc_shift = np.array(latent_db_processed).mean(axis=0) 
+    # print("dc shift vector shape: ", dc_shift.shape) 
+
+    # Both the basis vectors and the dc shift will come from the create basis function 
+    basis_latents, dc_shift = create_basis_latents_advanced(latent_db_processed)  
+
+    # checking whether the basis are in the plane or not 
+    check_planarity(basis_latents, dc_shift) 
     # print("dc shift vector shape: ", dc_shift.shape, dc_shift.min(), dc_shift.max())  
 
     image_matrix = []
     for id in range(0, n_transforms):
         # Source image decode latent code 
-        z, save_src_img = encode_forward(nets, outdim, img_path)
+        z, save_src_img = encode_forward(nets, outdim, img_save_size, img_path)
         out_z_img = decode_forward(nets, outdim, z)
         save_out_z_img = renormalize.as_image(out_z_img[0]).resize((img_save_size, img_save_size), Image.LANCZOS) 
 
@@ -180,19 +265,19 @@ def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path,
     n_atts = len(latent_db_processed)
     print("number of attribute styles for input: ", n_atts)
 
-    basis_latent = create_basis_latents(latent_db_processed)
+    basis_latent = create_basis_latents(latent_db_processed) 
     dc_shift = np.array(latent_db_processed).mean(axis=0)
 
     # Computing weights for the key-frames which will be interpolated later 
     key_weights = []
     for id in range(0, n_key_frames):
         basis_coeffs = [round(np.random.uniform(-variation, variation), 2) for i in range(0,n_atts-1)]
-        key_weights.append(basis_coeffs)
+        key_weights.append(basis_coeffs) 
 
     # Creating a circular loop to make the visual look continuous 
     key_weights.append(key_weights[0])
 
-    z, save_src_img = encode_forward(nets, outdim, img_path)
+    z, save_src_img = encode_forward(nets, outdim, img_save_size, img_path)
     out_z_img = decode_forward(nets, outdim, z)
 
     quantize = 0.1
@@ -235,18 +320,19 @@ def edit_image_set_interpolate_atts():
     latent_db_list = ['latent_style_att_dir_db_eye_g_style.csv', 'latent_style_att_dir_db_hair_style.csv']
     latent_db_paths = [os.path.join(latent_path_root, ln) for ln in latent_db_list] 
     
-    img_transform_paths = [os.path.join(img_transform_path_root, att) for att in att_list]
+    # Saving in the new folder which will have projections also 
+    img_transform_paths = [os.path.join(img_transform_path_root, att, '_proj') for att in att_list]
 
     img_idxs = [img for img in os.listdir(img_path_root) if(img[-4:] == '.jpg')]
-    # Randomly shuffle image_idxs:
-    import random
-    img_idxs = random.sample(img_idxs, len(img_idxs))
+    # Randomly shuffle image_idxs: | Not using random shuffle for now 
+    # import random
+    # img_idxs = random.sample(img_idxs, len(img_idxs))
 
     img_paths = [os.path.join(img_path_root, img_id) for img_id in img_idxs]
 
     # Number of images to be processed, number of pairs to be used for computation and the required edit strength 
-    n = 25
-    n_pairs = 5
+    n = 5
+    n_pairs = 5 
     n_transforms = 16
     n_key_frames = 10
     alpha = 0.6
@@ -258,9 +344,9 @@ def edit_image_set_interpolate_atts():
 
     for i in range(0, n):  
         for att_j in range(0, 1): # Currently running just for the hair attribute 
-            # edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alpha)
+            edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alpha)
             # edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, alphas)
-            create_gif(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_key_frames)
+            # create_gif(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_key_frames)
 
 if __name__ == "__main__":   
   print("running main ...")
