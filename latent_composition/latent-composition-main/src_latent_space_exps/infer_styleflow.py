@@ -28,10 +28,10 @@ def run_main():
     nets = load_nets() 
     outdim = 1024
     img_save_size = 1024
-    n_attr = 7
+    n_attr = 5
 
     # attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
-    # new_order = ['Pose', 'Expression', 'Gender', 'Age']
+    # new_order = ['Expression', 'Pose', 'Age', 'Glasses']
     for file_ in os.listdir(src_folder):
         fn = os.path.join(src_folder, file_) 
         latents = np.load(fn)

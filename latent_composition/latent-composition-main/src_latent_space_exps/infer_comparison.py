@@ -63,7 +63,7 @@ def infer_model(nets, outdim, latent):
 def compute_transform_if(nets, outdim, z, latent_path_if, attr_list, attr_strengths, seq):
     print("Editing with interface model")
     n_attr = len(attr_list) 
-    latent_name = ['smile.npy', 'angle_horizontal.npy', 'age.npy']
+    latent_name = ['smile.npy', 'angle_horizontal.npy', 'age.npy', 'glasses.npy']  
     latent_paths = [os.path.join(latent_path_if, ln) for ln in latent_name]
     latents = [np.load(lp) for lp in latent_paths]
 
@@ -94,8 +94,9 @@ def compute_transform_if(nets, outdim, z, latent_path_if, attr_list, attr_streng
 def compute_transform_our(nets, outdim, z, latent_path_ours, attr_list, attr_strengths, seq):
     print("Editing with our method")
     n_attr = len(attr_list)
-    n_pairs = 5
-    latent_names = ['latent_db_dir_id_18_smile.npy', 'latent_db_dir_id_14_pose.npy', 'latent_db_dir_id_12_age_80.npy'] 
+    n_pairs = 10
+    print("Editing with 10 pair of images")
+    latent_names = ['latent_db_dir_id_18_smile.npy', 'latent_db_dir_id_14_pose.npy', 'latent_db_dir_id_12_age_80.npy', 'latent_db_dir_id_17_eye_g.npy'] 
     latent_paths = [os.path.join(latent_path_ours, ln) for ln in latent_names]
     latent_dbs = [np.load(lp) for lp in latent_paths] 
 
@@ -103,7 +104,7 @@ def compute_transform_our(nets, outdim, z, latent_path_ours, attr_list, attr_str
     for l in range(n_attr):
         latent_db_dir = latent_dbs[l]
         latent_dir_db_norm = normalize_dirs(latent_db_dir)               
-        # Filtering out the first set of 5 latents for processing
+        # Filtering out the first set of 5/10 latents for processing
         latent_dir_db_norm = latent_dir_db_norm[:n_pairs, ...]  
         # Using SVD to find the dominant direction 
         avg_latent_dir = estimate_dominant_dir(latent_dir_db_norm, 'SVD')   
@@ -134,19 +135,23 @@ def compute_transform_our(nets, outdim, z, latent_path_ours, attr_list, attr_str
 
 
 # Tjis function performs a forward pass for the estimated latents from the styleflow approach 
-def compute_transform_sf(nets, outdim, z, z_transforms, id, attr_list):
+def compute_transform_sf(nets, outdim, z, latent_path_sf, id, attr_list):
     print("Editing with StyleFlow ...")
+    edited_latents_path = os.path.join(latent_path_sf, str(id) + '_orig_edits.npy')    
+    z_transfs = np.load(edited_latents_path)  # Only having the required edit operations saved in the latents 
+
+    # z_transf_order = ['Pose', 'Expression', 'Gender', 'Age', 'Eyeglasses', 'Baldness'] 
+    # z_transfs = [z_transf_all[2], z_transf_all[1], z_transf_all[4], z_transf_all[5]] 
+    # Selecting only that attributes that will be used for comparison 
+
+    # print("Z loaded shape: ", z_transfs.shape)
     n_attr = len(attr_list)
-    
-    z_transform = z_transforms[id, ...] 
-    zTs = [z]
-    for id in range(n_attr):
-        z_new = z_transform[id, ...]
-        zTs.append(z_new)
+    # print("n attribute: ", n_attr) 
+
 
     out_image_stack = []
     for id in range(n_attr + 1):
-        z_current = zTs[id]
+        z_current = z_transfs[id]
         latent = torch.from_numpy(z_current)
         latent_torch = latent.type(torch.FloatTensor).cuda()
 
@@ -155,10 +160,28 @@ def compute_transform_sf(nets, outdim, z, z_transforms, id, attr_list):
         out_image_stack.append(img_norm) 
 
 
-    print("Returning image stack from interfaceGAN of shape: ", len(out_image_stack))
+    print("Returning image stack from StyleFlow of shape: ", len(out_image_stack))
     out_image_stack = np.hstack(out_image_stack)
     return out_image_stack
 
+# This function will zero out the latent directions corresponding for each attribute based  asdflkjhjgghvafksdlfavjh vhkjfvf h fhjjf  fkjf iv fajijfklj fi klj fl fjiosa
+def filter_gs_latents(attr, latent):
+    print("Filtering latent for ganspace model: ", latent.shape)
+    latent_modified = np.zeros((18,512))
+    
+    if (attr == 'Expression'):
+        latent_modified[0:4, :] = np.zeros((4, 512))
+        latent_modified[6:18, :] = np.zeros((12, 512))
+
+    elif (attr == 'Pose'):
+        latent_modified[4:18, :] = np.zeros((14, 512))
+
+    elif (attr == 'Age'):
+        latent_modified[0:4, :] = np.zeros((4, 512))
+        latent_modified[8:18, :] = np.zeros((10, 512))
+    
+    elif (attr == 'Glasses'):
+        latent_modified[9:18, :] = np.zeros((9, 512)) 
 
 
 # This function will inflate the latent code of 512 dimensions to match the dimensions of w+ space which is 18x512
@@ -180,19 +203,44 @@ def convert_to_wplus(Z_comp):
 def compute_transform_gs(nets, outdim, z, latent_path_gs, attr_list, attr_strength, seq):
     print("Editing with Ganspace")
     n_attr = len(attr_list)
-    print("attribute strengths: ", attr_strength) 
     latent_name = 'stylegan2-ffhq_style_ipca_c80_n1000000_w.npz'
     latent_path = os.path.join(latent_path_gs, latent_name)
 
     latent_loaded = np.load(latent_path, allow_pickle=False) 
     Z_comp = latent_loaded['lat_comp']
     Z_mean = latent_loaded['lat_mean']
+    Z_std = latent_loaded['lat_stdev']
+
+    # print("Z mean shape: ", Z_mean.shape, " Z std shape: ", Z_std.shape)
+
 
     latents_all = convert_to_wplus(Z_comp)
-    latents = [latents_all[46,:,:], latents_all[1,:,:], latents_all[34,:,:]] 
+    # Expression, Pose, Female_old (34) - Old (15), Glasses 
+    latents = [latents_all[46,:,:], latents_all[1,:,:], latents_all[15,:,:], latents_all[3,:,:]] 
+    attr_list = ['Expression', 'Pose', 'Age', 'Glasses']
+
+    # Computing the important latent layers for any particular attribute edit 
+    for id in range(len(attr_list)):
+        attr = attr_list[id]
+        latent = latents[id]
+        filter_gs_latents(attr, latent) 
 
     zTs = [z]
     for id in range(n_attr):
+
+        # Different logic to perform edit by first shifting mean
+        # ---------
+        # w_centered = z - Z_mean    
+        # w_coord = np.sum(w_centered.reshape(-1)*latents[id].reshape(-1)) / Z_std[id]
+        
+        # Otherwise reinforce existing
+        # delta = attr_strength[id] - w_coord # offset vector
+
+        # z_new = z + delta * latents[id]
+        # ---------
+
+
+
         z_new = z + attr_strength[id] * latents[id]
         # If we are creating sequential edits then the z will be updated as z_new 
         if (seq): 
@@ -219,19 +267,28 @@ def compute_transform_gs(nets, outdim, z, latent_path_gs, attr_list, attr_streng
 # This module will create the latent space transformation for a set of synthetic images provided with the latent code from styleFlow testing set 
 def compare_main():
     style_flow_imgs = '../../../../StyleFlow/StyleFlow/data/sg2latents.pickle'
-    dst_path = '../../CelebAMask-HQ/data_filtered/renew/comparison_results/compare_matrix/'
+    dst_path = '../../CelebAMask-HQ/data_filtered/renew/comparison_results/compare_matrix/' 
     loaded_src_latents = pickle.load(open(style_flow_imgs, "rb")) 
     src_img_latents = loaded_src_latents['Latent']  
 
+    """
+    src_test500_latents = '../../CelebAMask-HQ/data_filtered/test500_latents/' 
+    src_img_latents = []
+    for file_ in os.listdir(src_test500_latents):
+        latent_load = np.load(os.path.join(src_test500_latents, file_))
+        src_img_latents.append(latent_load)
+    print("Working with images from our test set") 
+    """
+
     print("latent for Gan Space dimentions ", len(src_img_latents))
 
-    attr_list = ['smile', 'pose', 'age']
-    attr_strength_if = [2.5, 5.0, -5.0] # attribute strength for latent transformation using interfaceGAN
-    attr_strength_gs = [-1.0, 1.0, 2.0] # attribute strength for latent edit using GanSpace directions 
-    attr_strength_our = [-0.4, 0.4, 0.56] # attribute strength for latent edits from our proposed method directions 
+    attr_list = ['smile', 'pose', 'age', 'eye_g']
+    attr_strength_if = [3.0, 10.0, -9.0, -5.0] # attribute strength for latent transformation using interfaceGAN
+    attr_strength_gs = [1.0, -0.8, -1.0, 1.0] # attribute strength for latent edit using GanSpace directions 
+    attr_strength_our = [-0.3, 0.4, 0.56, 0.6] # attribute strength for latent edits from our proposed method directions 
 
-    gs_fixed_strength = 3
-    attr_strength_gs = [gs_fixed_strength * alpha for alpha in attr_strength_gs] 
+    gs_fixed_strength = 3.0
+    attr_strength_gs = [gs_fixed_strength * alpha for alpha in attr_strength_gs]  
 
     fixed_strength = 10 # Fixed multiplier for our method to create visible transformation 
     attr_strength_our = [fixed_strength * alpha for alpha in attr_strength_our]   
@@ -242,8 +299,8 @@ def compare_main():
     tform_latents_sf ='../../../../StyleFlow/StyleFlow/results/individual_latents'
     latent_path_ours = '../../data_files/estimated_dirs_filt/'
 
-    n = 21
-    seq = False 
+    n = 10
+    seq = True 
     nets = load_nets()
     outdim = 1024
 
@@ -253,10 +310,11 @@ def compare_main():
 
         stack_ifg = compute_transform_if(nets, outdim, img_src_latent, latent_path_if, attr_list, attr_strength_if, seq)
         stack_gs = compute_transform_gs(nets, outdim, img_src_latent, latent_path_gs, attr_list, attr_strength_gs, seq)
+        stack_sf = compute_transform_sf(nets, outdim, img_src_latent, tform_latents_sf, id, attr_list)
         stack_our = compute_transform_our(nets, outdim, img_src_latent, latent_path_ours, attr_list, attr_strength_our, seq)
-        # stack_sf = compute_transform_sf(nets, outdim, img_src_latent, tform_latents_sf, id, attr_list)
 
-        combined_image_stack = np.vstack([stack_ifg, stack_gs, stack_our])
+        # combined_image_stack = np.vstack([stack_ifg, stack_gs, stack_sf, stack_our])
+        combined_image_stack = stack_gs
 
         img_save_name = str(id) + '_compare_mat_' + str(attr_list) + '_seq_' + str(seq) + '.jpg'
         img_save_path = os.path.join(dst_path, img_save_name)
