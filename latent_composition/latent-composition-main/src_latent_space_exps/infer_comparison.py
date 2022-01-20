@@ -166,10 +166,10 @@ def compute_transform_sf(nets, outdim, z, latent_path_sf, id, attr_list):
 
 # This function will zero out the latent directions corresponding for each attribute based  asdflkjhjgghvafksdlfavjh vhkjfvf h fhjjf  fkjf iv fajijfklj fi klj fl fjiosa
 def filter_gs_latents(attr, latent):
-    print("Filtering latent for ganspace model: ", latent.shape)
+    # print("Filtering latent for ganspace model: ", latent.shape)
     latent_modified = np.zeros((18,512))
     
-    if (attr == 'Expression'):
+    if (attr == 'Expression'):  
         latent_modified[0:4, :] = np.zeros((4, 512))
         latent_modified[6:18, :] = np.zeros((12, 512))
 
