@@ -23,7 +23,7 @@ def infer_model(nets, outdim, latent):
 
 # This is the main module which will create the synthesized image given the latent code from the styleflow module 
 def run_main():
-    src_folder = '../../../../StyleFlow/StyleFlow/results/individual_latents'
+    src_folder = '../../../../StyleFlow/StyleFlow/results/individual_latents_iter'
     dst_folder = '../../../../StyleFlow/StyleFlow/results/individual_imgs/'
     nets = load_nets() 
     outdim = 1024

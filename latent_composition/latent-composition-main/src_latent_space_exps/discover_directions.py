@@ -171,12 +171,12 @@ def compute_direction_id_att(att, data_files_root, pairwise_file_path, embds_pat
     latent_diffs = np.array(latent_diffs) 
     # print("latent difffs shape: {}".format(latent_diffs.shape))
 
-    fn = 'latent_db_dir_id_' + str(n_pairs) + '_' + att + '.npy'
+    fn = 'latent_db_dir_id_' + str(n_pairs) + '_' + att + '.npy'  
     latent_save_name = os.path.join(data_files_root, fn)
 
     # Saving the difference of latent directions at the file location 
     print("saving latent for: ", att, " at: ", latent_save_name)
-    np.save(latent_save_name, latent_diffs)
+    np.save(latent_save_name, latent_diffs) 
 
 
 # Computing the direction for each style for any given attribute. We will save all the directions for all the images and later

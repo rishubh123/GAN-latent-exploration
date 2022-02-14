@@ -75,14 +75,14 @@ def run_main():
     print("Z combined shape: ", Z_reshaped.shape)
     Z_filtered = [Z_reshaped[1,:,:], Z_reshaped[3,:,:], Z_reshaped[46,:,:], Z_reshaped[21,:,:], Z_reshaped[58,:,:], Z_reshaped[34,:,:]]  
                   # smile-46, bald-21, wrinkles-20, trimmed-beard-58, maskara beard-41, old_lady-34
-    att_list = ['pose', 'eye_g', 'smile', 'bald', 'trimmed-beard', 'age']  
+    att_list = ['pose', 'eye_g', 'smile', 'bald', 'trimmed-beard', 'age']   
 
     nets = load_nets() 
     outdim = 1024
     img_save_size = 512
     n_attr = 6 
 
-    alphas = [-2.0, 4.0, -2.0, 5.0, -4.0, 3.0]
+    alphas = [-2.0, 4.0, -2.0, 5.0, -4.0, 3.0] 
     attr_list = [str(k) for k in range(0, 80)]
 
     for file_id in range(25):

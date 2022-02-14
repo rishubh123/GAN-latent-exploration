@@ -312,7 +312,7 @@ def create_gif(nets, img_path, img_idx, img_transform_path, att, latent_db_path,
 
             latent_dir_tensor = torch.from_numpy(avg_latent_dir_shifted).cuda()
 
-            sample_alpha = np.random.uniform(alpha,alpha + 0.3)
+            sample_alpha = np.random.uniform(alpha,alpha + 0.1)
             zT = z + sample_alpha * fixed_scalar * latent_dir_tensor
 
             out_zT_img = decode_forward(nets, outdim, zT)
@@ -351,7 +351,7 @@ def edit_image_set_interpolate_atts():
     nets = load_nets()
     img_path_root = '../../CelebAMask-HQ/data_filtered/test500'
     img_transform_path_root = '../../CelebAMask-HQ/data_filtered/renew/results_display/attr_style' 
-    latent_path_root = '../../data_files/estimated_att_styles_filt'
+    latent_path_root = '../../data_files/estimated_att_styles/'
 
     # Specifieng paths for the latent db for processesing 
     att_list = ['eye_g_style', 'hair_style']
@@ -367,7 +367,7 @@ def edit_image_set_interpolate_atts():
     img_paths = [os.path.join(img_path_root, img_id) for img_id in img_idxs]
 
     # Number of images to be processed, number of pairs to be used for computation and the required edit strength 
-    n = 50
+    n = 30
     n_pairs = 5  
     n_transforms = 16
     n_key_frames = 10 
@@ -375,13 +375,13 @@ def edit_image_set_interpolate_atts():
     gif_alphas = [0.6 * 0.6, 0.6 * 0.8] # Based on the manipulation on a fixed set of layers 
     alphas = [0.2, 0.3, 0.5, 0.8]  # Passing various values of alpha to generate attribute varaitions with different strengths 
     variations = [0.8, 1.5]  # Passing different level of variation to be used for different attributes 
-    print("Editing {} images".format(n)) 
+    print("Editing {} images".format(n))  
 
     # Saving results with projection logic used for basis estimation 
     img_transform_paths = [os.path.join(img_transform_path_root, att + '_' + str(n_pairs) + '_proj') for att in att_list]
 
     for i in range(0, n):  
-        for att_j in range(0, 2): # Currently running just for the hair attribute 
+        for att_j in range(1, 2): # Currently running just for the hair attribute 
             # edit_image_interpolate_atts(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], latent_db_paths[att_j], n_pairs, n_transforms, edit_alpha, variations[att_j])
             # edit_image_interpolate_atts_group(nets, img_paths[i], img_idxs[i], img_transform_paths[att_j], att_list[att_j], 
             #                                   latent_db_paths[att_j], n_pairs, n_transforms, alphas, variations[att_j])

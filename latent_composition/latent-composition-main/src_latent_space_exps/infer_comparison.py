@@ -83,7 +83,7 @@ def compute_transform_if(nets, outdim, z, latent_path_if, attr_list, attr_streng
         latent_torch = latent.type(torch.FloatTensor).cuda()
 
         out_img = infer_model(nets, outdim, latent_torch)
-        img_norm = renormalize.as_image(out_img[0]).resize((outdim, outdim), Image.LANCZOS) 
+        img_norm = renormalize.as_image(out_img[0]).resize((outdim, outdim), Image.LANCZOS)  
         out_image_stack.append(img_norm) 
 
     print("Returning image stack from interfaceGAN of shape: ", len(out_image_stack))
@@ -119,6 +119,7 @@ def compute_transform_our(nets, outdim, z, latent_path_ours, attr_list, attr_str
             z = z_new
         zTs.append(z_new) 
 
+    width = 0
     out_image_stack = []
     for id in range(n_attr + 1):
         z_current = zTs[id]
@@ -128,6 +129,10 @@ def compute_transform_our(nets, outdim, z, latent_path_ours, attr_list, attr_str
         out_img = infer_model(nets, outdim, latent_torch)
         img_norm = renormalize.as_image(out_img[0]).resize((outdim, outdim), Image.LANCZOS) 
         out_image_stack.append(img_norm) 
+
+        buffer = np.ones((img_norm.size[0], width, 3)) * 255.0
+        if (not id == n_attr):
+            out_image_stack.append(buffer)
 
     print("Returning image stack from interfaceGAN of shape: ", len(out_image_stack))
     out_image_stack = np.hstack(out_image_stack)
@@ -160,7 +165,7 @@ def compute_transform_sf(nets, outdim, z, latent_path_sf, id, attr_list):
         out_image_stack.append(img_norm) 
 
 
-    print("Returning image stack from StyleFlow of shape: ", len(out_image_stack))
+    print("Returning image stack from StyleFlow of shape: ", len(out_image_stack))  
     out_image_stack = np.hstack(out_image_stack)
     return out_image_stack
 
@@ -258,7 +263,7 @@ def compute_transform_gs(nets, outdim, z, latent_path_gs, attr_list, attr_streng
         out_image_stack.append(img_norm) 
 
     print("Returning the image stack from GanSpace of shape: ", len(out_image_stack)) 
-    out_image_stack = np.hstack(out_image_stack)
+    out_image_stack = np.hstack(out_image_stack) 
     return out_image_stack
 
 
@@ -267,25 +272,29 @@ def compute_transform_gs(nets, outdim, z, latent_path_gs, attr_list, attr_streng
 # This module will create the latent space transformation for a set of synthetic images provided with the latent code from styleFlow testing set 
 def compare_main():
     style_flow_imgs = '../../../../StyleFlow/StyleFlow/data/sg2latents.pickle'
-    dst_path = '../../CelebAMask-HQ/data_filtered/renew/comparison_results/compare_matrix/' 
+    dst_path = '../../CelebAMask-HQ/data_filtered/renew/comparison_results/compare_matrix_iter/' 
     loaded_src_latents = pickle.load(open(style_flow_imgs, "rb")) 
     src_img_latents = loaded_src_latents['Latent']  
-
+    
     """
+    # For testing on optimized latents based for real images dumbed for test set
     src_test500_latents = '../../CelebAMask-HQ/data_filtered/test500_latents/' 
     src_img_latents = []
     for file_ in os.listdir(src_test500_latents):
         latent_load = np.load(os.path.join(src_test500_latents, file_))
         src_img_latents.append(latent_load)
     print("Working with images from our test set") 
+    dst_path = '../../CelebAMask-HQ/data_filtered/renew/real_imgs/'
     """
 
     print("latent for Gan Space dimentions ", len(src_img_latents))
 
     attr_list = ['smile', 'pose', 'age', 'eye_g']
-    attr_strength_if = [3.0, 10.0, -9.0, -5.0] # attribute strength for latent transformation using interfaceGAN
-    attr_strength_gs = [1.0, -0.8, -1.0, 1.0] # attribute strength for latent edit using GanSpace directions 
-    attr_strength_our = [-0.3, 0.4, 0.56, 0.6] # attribute strength for latent edits from our proposed method directions 
+    attr_strength_if = [-3.0, 10.0, -7.0, -5.0] # attribute strength for latent transformation using interfaceGAN
+    attr_strength_gs = [-1.0, -0.8, -1.0, 1.0] # attribute strength for latent edit using GanSpace directions 
+    attr_strength_our = [0.10, 0.4, 0.56, 0.7] # attribute strength for latent edits from our proposed method directions 
+
+    # attr_strength_our = [0.4, 0.4, 0.50, 0.7] # For real image editing 
 
     gs_fixed_strength = 3.0
     attr_strength_gs = [gs_fixed_strength * alpha for alpha in attr_strength_gs]  
@@ -299,8 +308,8 @@ def compare_main():
     tform_latents_sf ='../../../../StyleFlow/StyleFlow/results/individual_latents'
     latent_path_ours = '../../data_files/estimated_dirs_filt/'
 
-    n = 10
-    seq = True 
+    n = 1000
+    seq = False 
     nets = load_nets()
     outdim = 1024
 
@@ -313,8 +322,10 @@ def compare_main():
         stack_sf = compute_transform_sf(nets, outdim, img_src_latent, tform_latents_sf, id, attr_list)
         stack_our = compute_transform_our(nets, outdim, img_src_latent, latent_path_ours, attr_list, attr_strength_our, seq)
 
-        # combined_image_stack = np.vstack([stack_ifg, stack_gs, stack_sf, stack_our])
-        combined_image_stack = stack_gs
+        width = 0
+        buffer = np.ones((width, stack_sf.shape[1], 3)) * 255.0
+        combined_image_stack = np.vstack([stack_ifg, buffer, stack_gs, buffer, stack_sf, buffer, stack_our])
+        # combined_image_stack = stack_our
 
         img_save_name = str(id) + '_compare_mat_' + str(attr_list) + '_seq_' + str(seq) + '.jpg'
         img_save_path = os.path.join(dst_path, img_save_name)
